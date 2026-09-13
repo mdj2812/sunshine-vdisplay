@@ -4,6 +4,9 @@ Virtual display setup for **Sunshine/Moonlight** streaming on **Linux**, **NVIDI
 
 Force-enable a spare GPU output with a custom EDID — no dummy plug required. Includes automatic display switching when a Moonlight session starts and ends.
 
+**Primary repository:** [github.com/mdj2812/sunshine-vdisplay](https://github.com/mdj2812/sunshine-vdisplay)  
+A read-only mirror is available on self-hosted Gitea for local network use.
+
 **Tested on:** CachyOS · RTX 2070 SUPER · Limine · Sunshine 2026.x · KDE Plasma 6
 
 ## Features
@@ -47,20 +50,20 @@ GRUB handling also adapts per distro (`update-grub`, `grub-mkconfig`, or `grub2-
 Works on Arch, CachyOS, Fedora, Nobara, Debian, Ubuntu, openSUSE, and other distros with one of the supported initramfs backends:
 
 ```bash
-curl -fsSL https://gitea.home.mdj2812.top/mdj2812/sunshine-vdisplay/raw/branch/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/mdj2812/sunshine-vdisplay/main/scripts/install.sh | bash
 ```
 
 ### With explicit connectors
 
 ```bash
 VDISPLAY=HDMI-A-1 PDISPLAY=DP-3 bash <(curl -fsSL \
-  https://gitea.home.mdj2812.top/mdj2812/sunshine-vdisplay/raw/branch/main/scripts/install.sh)
+  bash <(curl -fsSL https://raw.githubusercontent.com/mdj2812/sunshine-vdisplay/main/scripts/install.sh)
 ```
 
 ### From a clone
 
 ```bash
-git clone https://gitea.home.mdj2812.top/mdj2812/sunshine-vdisplay.git
+git clone https://github.com/mdj2812/sunshine-vdisplay.git
 cd sunshine-vdisplay
 ./scripts/install.sh
 ```
@@ -155,15 +158,23 @@ drm.edid_firmware=<CONNECTOR>:edid/virtual-display.bin video=<CONNECTOR>:e
 | GRUB | `GRUB_CMDLINE_LINUX_DEFAULT` → `sudo grub-mkconfig -o /boot/grub/grub.cfg` |
 | systemd-boot | `options` line in `/boot/loader/entries/*.conf` |
 
-### 3. Initramfs (Arch/CachyOS)
+### 3. Initramfs
 
-Add to `FILES=()` in `/etc/mkinitcpio.conf`:
+The installer handles this automatically. Manual reference by backend:
+
+**mkinitcpio (Arch/CachyOS):** add to `FILES=()` in `/etc/mkinitcpio.conf`, then `sudo mkinitcpio -P`
+
+**dracut (Fedora/openSUSE):** create `/etc/dracut.conf.d/99-sunshine-vdisplay.conf`:
 
 ```
-FILES=(/usr/lib/firmware/edid/virtual-display.bin)
+install_items+=" /usr/lib/firmware/edid/virtual-display.bin "
 ```
 
-Then `sudo mkinitcpio -P` and reboot.
+Then `sudo dracut -f`
+
+**initramfs-tools (Debian/Ubuntu):** the installer writes `/etc/initramfs-tools/hooks/sunshine-vdisplay-edid`, then `sudo update-initramfs -u -k all`
+
+Reboot after rebuilding initramfs.
 
 ### 4. Sunshine output index
 

@@ -2,7 +2,7 @@
 # Full installer for NVIDIA + KDE Wayland Sunshine virtual display.
 #
 # One-liner:
-#   curl -fsSL https://gitea.home.mdj2812.top/mdj2812/sunshine-vdisplay/raw/branch/main/scripts/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/mdj2812/sunshine-vdisplay/main/scripts/install.sh | bash
 #
 # With options:
 #   VDISPLAY=HDMI-A-1 PDISPLAY=DP-3 bash install.sh
@@ -24,7 +24,7 @@ PDISPLAY="${PDISPLAY:-}"
 RES="${RES:-2560x1600@120}"
 PDISPLAY_RES="${PDISPLAY_RES:-2560x1440@143.99}"
 SUNSHINE_OUTPUT="${SUNSHINE_OUTPUT:-0}"
-REPO_URL="${REPO_URL:-https://gitea.home.mdj2812.top/mdj2812/sunshine-vdisplay.git}"
+REPO_URL="${REPO_URL:-https://github.com/mdj2812/sunshine-vdisplay.git}"
 WORK_DIR="${WORK_DIR:-$(mktemp -d /tmp/sunshine-vdisplay.XXXXXX)}"
 KEEP_WORK_DIR="${KEEP_WORK_DIR:-0}"
 INITRAMFS_BACKEND="${INITRAMFS_BACKEND:-}"
