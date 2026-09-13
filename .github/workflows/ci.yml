@@ -27,11 +27,11 @@ jobs:
           (cd scripts && shellcheck -x vdisplay-on.sh vdisplay-off.sh)
 
       - name: shfmt
-        run: shfmt -d -i 4 -ci -bn scripts/*.sh
+        run: shfmt -d -i 4 -ci -bn scripts/*.sh tests/*.sh
 
       - name: bash -n
         run: |
-          for script in scripts/*.sh; do
+          for script in scripts/*.sh tests/*.sh; do
             bash -n "$script"
           done
 
@@ -51,15 +51,38 @@ jobs:
           test "$(wc -c < /tmp/virtual-display.bin)" -eq 256
 
   smoke:
-    name: Install smoke test
+    name: Smoke · ${{ matrix.name }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Debian · initramfs-tools
+            image: debian:trixie-slim
+            install: |
+              apt-get update
+              DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates python3 sudo initramfs-tools
+          - name: Ubuntu · initramfs-tools
+            image: ubuntu:24.04
+            install: |
+              apt-get update
+              DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates python3 sudo initramfs-tools
+          - name: Fedora · dracut
+            image: fedora:43
+            install: dnf install -y python3 sudo dracut
+          - name: openSUSE · dracut
+            image: opensuse/tumbleweed
+            install: zypper --non-interactive install python3 sudo dracut
+          - name: Arch · mkinitcpio
+            image: archlinux:latest
+            install: pacman -Sy --noconfirm python sudo mkinitcpio
+    container:
+      image: ${{ matrix.image }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y python3 initramfs-tools sudo
+        run: ${{ matrix.install }}
 
       - name: Run smoke test
-        run: sudo -E env HOME=/root ./tests/smoke-test.sh
+        run: env HOME=/root ./tests/smoke-test.sh

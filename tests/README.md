@@ -8,7 +8,17 @@ Every push runs:
 |-----|--------|
 | Shell lint and format | ShellCheck, shfmt, `bash -n` |
 | EDID generator | 256-byte output |
-| Install smoke test | `tests/smoke-test.sh` on Ubuntu (initramfs-tools path) |
+| Install smoke test | `tests/smoke-test.sh` in a distro matrix (see below) |
+
+### Smoke matrix (CI)
+
+| Distro | Initramfs backend |
+|--------|-------------------|
+| Debian trixie | initramfs-tools |
+| Ubuntu 24.04 | initramfs-tools |
+| Fedora 43 | dracut |
+| openSUSE Tumbleweed | dracut |
+| Arch Linux | mkinitcpio |
 
 ## Local / VM smoke test
 
