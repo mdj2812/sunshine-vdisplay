@@ -4,9 +4,6 @@ Virtual display setup for **Sunshine/Moonlight** streaming on **Linux**, **NVIDI
 
 Force-enable a spare GPU output with a custom EDID — no dummy plug required. Includes automatic display switching when a Moonlight session starts and ends.
 
-**Primary repository:** [github.com/mdj2812/sunshine-vdisplay](https://github.com/mdj2812/sunshine-vdisplay)  
-A read-only mirror is available on self-hosted Gitea for local network use.
-
 **Tested on:** CachyOS · RTX 2070 SUPER · Limine · Sunshine 2026.x · KDE Plasma 6
 
 ## Features
@@ -57,7 +54,7 @@ curl -fsSL https://raw.githubusercontent.com/mdj2812/sunshine-vdisplay/main/scri
 
 ```bash
 VDISPLAY=HDMI-A-1 PDISPLAY=DP-3 bash <(curl -fsSL \
-  bash <(curl -fsSL https://raw.githubusercontent.com/mdj2812/sunshine-vdisplay/main/scripts/install.sh)
+  https://raw.githubusercontent.com/mdj2812/sunshine-vdisplay/main/scripts/install.sh)
 ```
 
 ### From a clone
