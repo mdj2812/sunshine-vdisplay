@@ -3,6 +3,7 @@
 
 set -euo pipefail
 
+# shellcheck source=vdisplay-common.sh
 source "$(dirname "$0")/vdisplay-common.sh"
 
 if kscreen_has_output "$PDISPLAY"; then

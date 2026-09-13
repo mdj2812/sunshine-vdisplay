@@ -28,12 +28,21 @@ if [[ -t 1 ]]; then
     C_BG_RED=$'\033[41m'
     C_BG_YELLOW=$'\033[43m'
 else
-    C_RESET= C_BOLD= C_RED= C_BRIGHT_RED= C_YELLOW= C_BG_RED= C_BG_YELLOW=
+    C_RESET=''
+    C_BOLD=''
+    C_RED=''
+    C_BRIGHT_RED=''
+    C_YELLOW=''
+    C_BG_RED=''
+    C_BG_YELLOW=''
 fi
 
 log() { printf '==> %s\n' "$*"; }
 warn() { printf 'warning: %s\n' "$*" >&2; }
-die() { printf '%berror:%s %s\n' "$C_BRIGHT_RED" "$C_RESET" "$*" >&2; exit 1; }
+die() {
+    printf '%berror:%s %s\n' "$C_BRIGHT_RED" "$C_RESET" "$*" >&2
+    exit 1
+}
 
 confirm_uninstall() {
     if [[ "${I_CONFIRM_UNINSTALL:-0}" == "1" ]]; then

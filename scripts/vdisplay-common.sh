@@ -18,6 +18,7 @@ export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=${XDG_RUN
 mkdir -p "$STATE_DIR"
 
 _local_overrides="${HOME}/bin/vdisplay-common.local.sh"
+# shellcheck source=/dev/null
 [[ -f "$_local_overrides" ]] && source "$_local_overrides"
 
 kscreen() {
@@ -111,7 +112,7 @@ tune_virtual_display() {
 }
 
 save_night_color_state() {
-    kreadconfig6 --file kwinrc --group NightColor --key Active 2>/dev/null > "${STATE_DIR}/night-color" || echo false > "${STATE_DIR}/night-color"
+    kreadconfig6 --file kwinrc --group NightColor --key Active 2>/dev/null >"${STATE_DIR}/night-color" || echo false >"${STATE_DIR}/night-color"
 }
 
 disable_night_color() {
