@@ -1,52 +1,48 @@
-# Sunshine Virtual Display (NVIDIA + KDE Wayland)
+# sunshine-vdisplay
 
-Headless virtual display setup for Sunshine/Moonlight streaming on Linux with an NVIDIA GPU and KDE Plasma Wayland.
+Virtual display setup for **Sunshine/Moonlight** streaming on **Linux**, **NVIDIA**, and **KDE Plasma Wayland**.
 
-Works without a dummy plug: force-enable a spare GPU connector with a custom EDID loaded from initramfs.
+Force-enable a spare GPU output with a custom EDID — no dummy plug required. Includes automatic display switching when a Moonlight session starts and ends.
 
-## Contents
+**Tested on:** CachyOS · RTX 2070 SUPER · Limine · Sunshine 2026.x · KDE Plasma 6
 
-| Path | Purpose |
-|------|---------|
-| `scripts/create-vdisplay-edid.py` | Generate custom EDID with HDMI 2.1 VSDB blocks |
-| `scripts/vdisplay-common.sh` | Shared KDE Wayland session helpers |
-| `scripts/vdisplay-on.sh` | Enable virtual display, disable physical monitor |
-| `scripts/vdisplay-off.sh` | Restore physical monitor, disable virtual display |
-| `scripts/install-local.sh` | Install scripts, EDID firmware, and Sunshine config |
-| `config/sunshine.conf` | Sunshine KMS capture config template |
-| `system/mkinitcpio.files.snippet` | Initramfs EDID bundling (Arch/CachyOS) |
-| `system/limine.cmdline.snippet` | Kernel params for the virtual connector |
+## Features
 
-## Tested on
+- Custom EDID with HDMI 2.1 VSDB blocks (2560×1600@120, 4K, and more)
+- One-line installer for Arch/CachyOS (Limine, GRUB, or systemd-boot)
+- Automatic virtual/physical display swap via Sunshine `global_prep_cmd`
+- Brightness tuning for virtual outputs (scale, brightness, dimming, Night Color)
+- Client-adaptive resolution via `SUNSHINE_CLIENT_*` env vars
 
-- GPU: NVIDIA RTX 2070 SUPER
-- OS: CachyOS (Arch-based), Limine bootloader, KDE Plasma 6 Wayland
-- Sunshine 2026.x with KMS capture + NVENC
+## Requirements
 
-Example connector layout on the test machine:
+| Component | Notes |
+|-----------|-------|
+| GPU | NVIDIA with proprietary driver |
+| Desktop | KDE Plasma **Wayland** |
+| OS | Arch / CachyOS (uses `mkinitcpio`) |
+| Streaming | [Sunshine](https://app.lizardbyte.dev/) with KMS capture |
+| Bootloader | Limine, GRUB, or systemd-boot |
+| Spare connector | Unused HDMI or DisplayPort (nothing plugged in) |
 
-| Connector | Role |
-|-----------|------|
-| `HDMI-A-1` | Virtual display (force-enabled) |
-| `DP-3` | Physical monitor |
-
-Your connector names will differ — check `/sys/class/drm/card*-* /status`.
+Sunshine also needs `cap_sys_admin` for KMS capture — the installer sets this automatically.
 
 ## Quick start
 
-**One-liner (Arch/CachyOS + Limine + NVIDIA + KDE):**
+### One-liner
 
 ```bash
 curl -fsSL https://gitea.home.mdj2812.top/mdj2812/sunshine-vdisplay/raw/branch/main/scripts/install.sh | bash
 ```
 
-**With explicit connectors:**
+### With explicit connectors
 
 ```bash
-VDISPLAY=HDMI-A-1 PDISPLAY=DP-3 bash <(curl -fsSL https://gitea.home.mdj2812.top/mdj2812/sunshine-vdisplay/raw/branch/main/scripts/install.sh)
+VDISPLAY=HDMI-A-1 PDISPLAY=DP-3 bash <(curl -fsSL \
+  https://gitea.home.mdj2812.top/mdj2812/sunshine-vdisplay/raw/branch/main/scripts/install.sh)
 ```
 
-**From a clone:**
+### From a clone
 
 ```bash
 git clone https://gitea.home.mdj2812.top/mdj2812/sunshine-vdisplay.git
@@ -56,18 +52,69 @@ cd sunshine-vdisplay
 
 The installer will:
 
-1. Generate and install the EDID firmware
-2. Install scripts to `~/bin`
-3. Configure Sunshine (`global_prep_cmd`, KMS capture)
-4. Update `mkinitcpio.conf` and your bootloader (Limine, GRUB, or systemd-boot)
-5. Rebuild initramfs
-6. Disable screen blanking that breaks virtual displays
+1. Auto-detect connectors (prefers unused **HDMI**, then **DP**)
+2. Generate and install EDID firmware to `/usr/lib/firmware/edid/`
+3. Install scripts to `~/bin` and Sunshine config to `~/.config/sunshine/`
+4. Patch `mkinitcpio.conf` and your bootloader cmdline
+5. Rebuild initramfs and apply Sunshine capabilities
+6. Disable screen blanking that breaks headless virtual outputs
 
-Then reboot when prompted.
+Reboot when prompted, then connect with Moonlight — display switching is automatic.
 
-## Customize for your machine
+### Installer options
 
-### 1. Pick a free GPU connector
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VDISPLAY` | first free HDMI, else DP | Virtual connector name |
+| `PDISPLAY` | first connected monitor | Physical connector name |
+| `RES` | `2560x1600@120` | Virtual display mode |
+| `PDISPLAY_RES` | `2560x1440@143.99` | Physical display mode |
+| `SUNSHINE_OUTPUT` | `0` | Sunshine KMS monitor index |
+| `SKIP_REBOOT` | `0` | Set to `1` to skip reboot prompt |
+| `REPO_URL` | this repo | Override clone URL |
+
+Local overrides are saved to `~/bin/vdisplay-common.local.sh`.
+
+## How it works
+
+```
+Boot
+  └─ kernel loads custom EDID on spare connector (e.g. HDMI-A-1)
+       └─ KDE sees a second monitor
+
+Moonlight session start
+  └─ Sunshine global_prep_cmd → vdisplay-on.sh
+       ├─ enable virtual display at (0,0)
+       ├─ tune brightness / scale
+       └─ disable physical monitor
+
+Moonlight session end
+  └─ Sunshine undo cmd → vdisplay-off.sh
+       ├─ restore physical monitor
+       └─ disable virtual display
+```
+
+Sunshine captures the virtual output via **KMS** (`capture = kms`, `encoder = nvenc`).
+
+## Repository layout
+
+| Path | Purpose |
+|------|---------|
+| `scripts/install.sh` | Full automated installer |
+| `scripts/install-local.sh` | Wrapper → `install.sh` |
+| `scripts/create-vdisplay-edid.py` | EDID generator |
+| `scripts/vdisplay-on.sh` | Enable virtual, disable physical |
+| `scripts/vdisplay-off.sh` | Restore physical, disable virtual |
+| `scripts/vdisplay-common.sh` | Shared KDE/Wayland helpers |
+| `config/sunshine.conf` | Sunshine config template (`__HOME__` placeholders) |
+| `system/mkinitcpio.files.snippet` | Initramfs EDID reference |
+| `system/limine.cmdline.snippet` | Kernel param reference |
+
+## Manual setup
+
+Use this if you prefer not to run the installer, or need to adapt for another distro.
+
+### 1. Find connectors
 
 ```bash
 for p in /sys/class/drm/card*-*; do
@@ -75,95 +122,112 @@ for p in /sys/class/drm/card*-*; do
 done
 ```
 
-Use a connector that is **disconnected** and not your physical monitor, e.g. `HDMI-A-1` or `DP-2`.
+Pick a **disconnected** port for the virtual display.
 
-### 2. Set kernel parameters
+### 2. Kernel parameters
 
-Add both parameters — **both are required on the NVIDIA proprietary driver**:
+Both are required on the NVIDIA proprietary driver:
 
 ```
 drm.edid_firmware=<CONNECTOR>:edid/virtual-display.bin video=<CONNECTOR>:e
 ```
 
-Examples:
+| Bootloader | Where to add |
+|------------|--------------|
+| Limine | `KERNEL_CMDLINE` in `/etc/default/limine` → `sudo limine-update` |
+| GRUB | `GRUB_CMDLINE_LINUX_DEFAULT` → `sudo grub-mkconfig -o /boot/grub/grub.cfg` |
+| systemd-boot | `options` line in `/boot/loader/entries/*.conf` |
 
-- **Limine** — append to `KERNEL_CMDLINE` in `/etc/default/limine`, then `sudo limine-update`
-- **GRUB** — append to `GRUB_CMDLINE_LINUX_DEFAULT`, then `sudo grub-mkconfig -o /boot/grub/grub.cfg`
-- **systemd-boot** — append to your boot entry `options` line
+### 3. Initramfs (Arch/CachyOS)
 
-See `system/limine.cmdline.snippet` for a connector-only example (no root/filesystem params).
-
-### 3. Bundle EDID in initramfs
-
-Arch/CachyOS: add to `FILES=()` in `/etc/mkinitcpio.conf`:
+Add to `FILES=()` in `/etc/mkinitcpio.conf`:
 
 ```
 FILES=(/usr/lib/firmware/edid/virtual-display.bin)
 ```
 
-Then `sudo mkinitcpio -P`.
+Then `sudo mkinitcpio -P` and reboot.
 
-### 4. Configure Sunshine output index
+### 4. Sunshine output index
 
-After reboot, check Sunshine's log for the KMS monitor list:
+After reboot, check which monitor index is the virtual display:
 
 ```bash
 journalctl --user -u sunshine | rg 'Monitor [0-9]'
 ```
 
-Set `output_name` in `~/.config/sunshine/sunshine.conf` to the **numeric index** of your virtual display (not the connector name).
+Set `output_name` in `~/.config/sunshine/sunshine.conf` to that **number** (not the connector name).
 
-### 5. Set physical/virtual connector names (optional)
+## Usage
 
-Defaults in `vdisplay-common.sh`:
+### Automatic (default)
 
-```bash
-VDISPLAY=HDMI-A-1   # virtual
-PDISPLAY=DP-3       # physical
-PDISPLAY_RES=2560x1440@143.99
-RES=2560x1600@120   # virtual resolution
-```
+Once installed, just start a Moonlight session. No manual script needed.
 
-Override when calling the scripts if your connectors differ.
-
-### 6. Custom resolutions
-
-Edit `CUSTOM_DTDS` in `scripts/create-vdisplay-edid.py`, regenerate, reinstall, rebuild initramfs, reboot.
-
-## After reboot
+### Manual
 
 ```bash
-cat /sys/class/drm/card*-HDMI-A-1/status   # should say "connected"
-~/bin/vdisplay-on.sh
-systemctl --user restart sunshine
+~/bin/vdisplay-on.sh              # streaming mode
+~/bin/vdisplay-on.sh 2560x1600@120
+~/bin/vdisplay-off.sh             # back to physical monitor
 ```
 
-## Automation
+### Brightness tuning
 
-Sunshine `global_prep_cmd` switches displays when a Moonlight session starts and ends:
+Virtual outputs are SDR-only on NVIDIA force-enabled connectors and may look darker than an HDR physical panel. The scripts apply:
 
-- **Session start:** `vdisplay-on.sh` — virtual on, physical off
-- **Session end:** `vdisplay-off.sh` — physical on, virtual off
-
-Brightness tuning on the virtual display:
-
-- Scale matched to the physical monitor
+- Matched scale (default `1.5`)
 - Brightness `100%`, dimming floor `100%`
-- Night Color disabled while streaming
+- Night Color paused while streaming
+
+Override:
 
 ```bash
 VDISPLAY_BRIGHTNESS=100 VDISPLAY_DIMMING=100 VDISPLAY_SCALE=1.5 ~/bin/vdisplay-on.sh
 ```
 
+### Custom resolutions
+
+Edit `CUSTOM_DTDS` in `scripts/create-vdisplay-edid.py`, then:
+
+```bash
+python3 ~/bin/create-vdisplay-edid.py /tmp/virtual-display.bin
+sudo cp /tmp/virtual-display.bin /usr/lib/firmware/edid/virtual-display.bin
+sudo mkinitcpio -P
+sudo reboot
+```
+
+## Troubleshooting
+
+| Problem | Fix |
+|---------|-----|
+| Sunshine: "Couldn't find monitor" | `output_name` must be a numeric KMS index — check `sunshine.log` |
+| Virtual connector stays disconnected | Verify kernel cmdline includes both `drm.edid_firmware` and `video=:e`; rebuild initramfs |
+| `vdisplay-on.sh`: display not found | Script needs a KDE Wayland session (`WAYLAND_DISPLAY=wayland-0`) |
+| Stream goes black when idle | Disable DPMS / screen blanking (installer does this) |
+| Modes capped at 1080p | EDID missing HDMI VSDB blocks — regenerate with included script |
+| Undo cmd doesn't run | Runs when the Moonlight **session ends**, not when the app is minimized |
+
+Verify virtual display after reboot:
+
+```bash
+cat /proc/cmdline
+cat /sys/class/drm/card*-HDMI-A-1/status
+cat /sys/class/drm/card*-HDMI-A-1/modes
+```
+
 ## Limitations
 
-- `output_name` must be a **numeric KMS index**, not a connector name.
-- New EDID modes require regenerating the binary, rebuilding initramfs, and rebooting.
-- **HDR does not work** on NVIDIA force-enabled virtual connectors.
-- 4K@120 may cap at 4K@60 on virtual outputs (driver FRL limitation).
-- Do not commit `sunshine_state.json`, credentials, or generated `.bin` files.
+- **HDR** does not work on NVIDIA force-enabled virtual connectors
+- **4K@120** may cap at 4K@60 on virtual outputs (driver FRL limitation)
+- New EDID modes require regenerating the binary, rebuilding initramfs, and rebooting
+- Linux-only; Sunshine does not create virtual displays — this repo handles that part
 
 ## References
 
 - [NVIDIA virtual display gist (Harry Ankers)](https://gist.github.com/HarryAnkers/8dbf551d66f00e8156ef4dd2b2b090a0)
 - [Sunshine configuration docs](https://docs.lizardbyte.dev/projects/sunshine/latest/md_docs_2configuration.html)
+
+## License
+
+MIT — see [LICENSE](LICENSE).
