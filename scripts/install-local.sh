@@ -11,10 +11,13 @@ sudo install -d /usr/lib/firmware/edid
 sudo install -m 644 /tmp/virtual-display.bin /usr/lib/firmware/edid/virtual-display.bin
 
 install -d "$HOME/.config/sunshine"
-install -m 644 "$repo_root/config/sunshine.conf" "$HOME/.config/sunshine/sunshine.conf"
+sed "s|__HOME__|${HOME}|g" "$repo_root/config/sunshine.conf" > "$HOME/.config/sunshine/sunshine.conf"
 
 echo "Installed scripts to ~/bin and sunshine.conf to ~/.config/sunshine/"
-echo "System files still need manual merge:"
-echo "  - system/mkinitcpio.files.snippet -> /etc/mkinitcpio.conf"
-echo "  - system/limine.cmdline.snippet   -> /etc/default/limine"
-echo "Then run: sudo mkinitcpio -P && sudo limine-update && sudo reboot"
+echo
+echo "Next, customize and merge system snippets:"
+echo "  1. Pick an unused GPU connector (see README)"
+echo "  2. system/mkinitcpio.files.snippet   -> /etc/mkinitcpio.conf"
+echo "  3. system/limine.cmdline.snippet     -> /etc/default/limine (or GRUB/systemd-boot)"
+echo "  4. sudo mkinitcpio -P && sudo limine-update && sudo reboot"
+echo "  5. Set output_name in sunshine.conf from the KMS monitor list in sunshine.log"
