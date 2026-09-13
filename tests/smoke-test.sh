@@ -2,7 +2,7 @@
 # Smoke-test install/uninstall in a VM or container (no GPU, bootloader, or reboot).
 #
 # Usage:
-#   ./scripts/smoke-test.sh
+#   ./tests/smoke-test.sh
 #
 # Environment:
 #   REPO_URL   Override clone URL when not run from a checkout

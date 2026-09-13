@@ -8,11 +8,11 @@ Every push runs:
 |-----|--------|
 | Shell lint and format | ShellCheck, shfmt, `bash -n` |
 | EDID generator | 256-byte output |
-| Install smoke test | `scripts/smoke-test.sh` on Ubuntu (initramfs-tools path) |
+| Install smoke test | `tests/smoke-test.sh` on Ubuntu (initramfs-tools path) |
 
 ## Local / VM smoke test
 
-`scripts/smoke-test.sh` runs a full **install → verify → uninstall → verify** cycle without:
+`tests/smoke-test.sh` runs a full **install → verify → uninstall → verify** cycle without:
 
 - bootloader changes
 - initramfs rebuild
@@ -22,7 +22,7 @@ Every push runs:
 Requires root (or sudo) and one supported initramfs backend.
 
 ```bash
-sudo ./scripts/smoke-test.sh
+sudo ./tests/smoke-test.sh
 ```
 
 Environment overrides (also used internally):
@@ -63,7 +63,7 @@ Run smoke test from your workstation:
 ```bash
 rsync -a --exclude .git ./ pve:/tmp/sunshine-vdisplay/
 ssh pve 'tar -C /tmp/sunshine-vdisplay -cf - . | pct exec 120 -- bash -c "mkdir -p /root/sunshine-vdisplay && tar -xf - -C /root/sunshine-vdisplay"'
-ssh pve 'pct exec 120 -- bash -lc "apt-get update && apt-get install -y python3 sudo initramfs-tools && /root/sunshine-vdisplay/scripts/smoke-test.sh"'
+ssh pve 'pct exec 120 -- bash -lc "apt-get update && apt-get install -y python3 sudo initramfs-tools && /root/sunshine-vdisplay/tests/smoke-test.sh"'
 ```
 
 Repeat for CT 121 with `dnf install -y python3 sudo dracut`.

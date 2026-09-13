@@ -62,4 +62,4 @@ jobs:
           sudo apt-get install -y python3 initramfs-tools sudo
 
       - name: Run smoke test
-        run: sudo -E env HOME=/root ./scripts/smoke-test.sh
+        run: sudo -E env HOME=/root ./tests/smoke-test.sh
