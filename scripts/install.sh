@@ -15,6 +15,7 @@
 #   SUNSHINE_OUTPUT   Sunshine KMS output index (default: 0)
 #   SKIP_REBOOT       Set to 1 to skip reboot prompt
 #   REPO_URL          Git clone URL (used when script is piped from curl)
+#   INITRAMFS_BACKEND Force backend: mkinitcpio, dracut, initramfs-tools
 
 set -euo pipefail
 
@@ -26,6 +27,8 @@ SUNSHINE_OUTPUT="${SUNSHINE_OUTPUT:-0}"
 REPO_URL="${REPO_URL:-https://gitea.home.mdj2812.top/mdj2812/sunshine-vdisplay.git}"
 WORK_DIR="${WORK_DIR:-$(mktemp -d /tmp/sunshine-vdisplay.XXXXXX)}"
 KEEP_WORK_DIR="${KEEP_WORK_DIR:-0}"
+INITRAMFS_BACKEND="${INITRAMFS_BACKEND:-}"
+EDID_FIRMWARE="/usr/lib/firmware/edid/virtual-display.bin"
 
 log() { printf '==> %s\n' "$*"; }
 warn() { printf 'warning: %s\n' "$*" >&2; }
@@ -133,9 +136,8 @@ prepare_repo() {
 
 merge_mkinitcpio() {
     local conf="/etc/mkinitcpio.conf"
-    local entry="/usr/lib/firmware/edid/virtual-display.bin"
 
-    [[ -f "$conf" ]] || die "mkinitcpio not found; this installer targets Arch/CachyOS"
+    [[ -f "$conf" ]] || return 1
 
     if grep -q 'virtual-display.bin' "$conf"; then
         log "mkinitcpio.conf already references virtual-display.bin"
@@ -144,10 +146,101 @@ merge_mkinitcpio() {
 
     log "Updating ${conf}"
     if grep -q '^FILES=' "$conf"; then
-        as_root sed -i "s|^FILES=(\\(.*\\))|FILES=(\\1 ${entry})|" "$conf"
+        as_root sed -i "s|^FILES=(\\(.*\\))|FILES=(\\1 ${EDID_FIRMWARE})|" "$conf"
     else
-        as_root bash -c "echo 'FILES=(${entry})' >> '$conf'"
+        as_root bash -c "echo 'FILES=(${EDID_FIRMWARE})' >> '$conf'"
     fi
+}
+
+merge_dracut() {
+    local conf="/etc/dracut.conf.d/99-sunshine-vdisplay.conf"
+
+    log "Updating ${conf}"
+    as_root install -d /etc/dracut.conf.d
+    as_root tee "$conf" >/dev/null <<EOF
+# Added by sunshine-vdisplay install.sh
+install_items+=" ${EDID_FIRMWARE} "
+EOF
+}
+
+merge_initramfs_tools() {
+    local hook="/etc/initramfs-tools/hooks/sunshine-vdisplay-edid"
+
+    log "Installing initramfs-tools hook ${hook}"
+    as_root install -d /etc/initramfs-tools/hooks
+    as_root tee "$hook" >/dev/null <<'EOF'
+#!/bin/sh
+PREREQ=""
+prereqs() { echo "$PREREQ"; }
+
+case "$1" in
+    prereqs) prereqs; exit 0 ;;
+esac
+
+. /usr/share/initramfs-tools/hook-functions
+
+mkdir -p "${DESTDIR}/usr/lib/firmware/edid"
+cp -a /usr/lib/firmware/edid/virtual-display.bin "${DESTDIR}/usr/lib/firmware/edid/virtual-display.bin"
+exit 0
+EOF
+    as_root chmod 755 "$hook"
+}
+
+detect_initramfs_backend() {
+    if [[ -n "$INITRAMFS_BACKEND" ]]; then
+        echo "$INITRAMFS_BACKEND"
+        return
+    fi
+
+    if [[ -f /etc/mkinitcpio.conf ]] && command -v mkinitcpio >/dev/null 2>&1; then
+        echo mkinitcpio
+    elif command -v dracut >/dev/null 2>&1; then
+        echo dracut
+    elif [[ -d /etc/initramfs-tools ]] && command -v update-initramfs >/dev/null 2>&1; then
+        echo initramfs-tools
+    else
+        echo unknown
+    fi
+}
+
+detect_distro_label() {
+    if [[ -f /etc/os-release ]]; then
+        # shellcheck disable=SC1091
+        source /etc/os-release
+        printf '%s' "${PRETTY_NAME:-${NAME:-Linux}}"
+        return
+    fi
+    echo "Linux"
+}
+
+configure_initramfs() {
+    local backend
+    backend="$(detect_initramfs_backend)"
+
+    case "$backend" in
+        mkinitcpio)
+            merge_mkinitcpio || die "failed to configure mkinitcpio"
+            log "Rebuilding initramfs with mkinitcpio"
+            as_root mkinitcpio -P
+            ;;
+        dracut)
+            merge_dracut
+            log "Rebuilding initramfs with dracut"
+            if as_root dracut --regenerate-all -f 2>/dev/null; then
+                :
+            else
+                as_root dracut -f
+            fi
+            ;;
+        initramfs-tools)
+            merge_initramfs_tools
+            log "Rebuilding initramfs with update-initramfs"
+            as_root update-initramfs -u -k all
+            ;;
+        *)
+            die "unsupported initramfs backend; install mkinitcpio, dracut, or initramfs-tools"
+            ;;
+    esac
 }
 
 kernel_param_snippet() {
@@ -183,13 +276,29 @@ merge_grub() {
     snippet="$(kernel_param_snippet)"
 
     if grep -q 'virtual-display.bin' "$conf"; then
-        as_root sed -i -E 's| drm\\.edid_firmware=[^ "]+:edid/virtual-display\\.bin video=[^ "]+:e||g' "$conf"
+        as_root sed -i -E 's| drm\.edid_firmware=[^ "]+:edid/virtual-display\.bin video=[^ "]+:e||g' "$conf"
     fi
 
-    log "Updating ${conf}"
-    as_root sed -i "s/^GRUB_CMDLINE_LINUX_DEFAULT=\"\\(.*\\)\"/GRUB_CMDLINE_LINUX_DEFAULT=\"\\1 ${snippet}\"/" "$conf"
-    need_cmd grub-mkconfig
-    as_root grub-mkconfig -o /boot/grub/grub.cfg
+    if ! grep -qF "$snippet" "$conf"; then
+        log "Updating ${conf}"
+        as_root sed -i "s/^GRUB_CMDLINE_LINUX_DEFAULT=\"\\(.*\\)\"/GRUB_CMDLINE_LINUX_DEFAULT=\"\\1 ${snippet}\"/" "$conf"
+    fi
+
+    if command -v update-grub >/dev/null 2>&1; then
+        as_root update-grub
+    elif command -v grub-mkconfig >/dev/null 2>&1; then
+        if [[ -d /boot/grub ]]; then
+            as_root grub-mkconfig -o /boot/grub/grub.cfg
+        elif [[ -d /boot/grub2 ]]; then
+            as_root grub-mkconfig -o /boot/grub2/grub.cfg
+        else
+            as_root grub-mkconfig -o /boot/grub/grub.cfg
+        fi
+    elif command -v grub2-mkconfig >/dev/null 2>&1; then
+        as_root grub2-mkconfig -o /boot/grub2/grub.cfg
+    else
+        die "grub config updated but no update-grub/grub-mkconfig found"
+    fi
 }
 
 merge_systemd_boot() {
@@ -201,7 +310,7 @@ merge_systemd_boot() {
         [[ -f "$entry" ]] || continue
         if grep -q '^options ' "$entry"; then
             if grep -q 'virtual-display.bin' "$entry"; then
-                as_root sed -i -E 's| drm\\.edid_firmware=[^ ]+:edid/virtual-display\\.bin video=[^ ]+:e||g' "$entry"
+                as_root sed -i -E 's| drm\.edid_firmware=[^ ]+:edid/virtual-display\.bin video=[^ ]+:e||g' "$entry"
             fi
             as_root sed -i "s|^options \\(.*\\)|options \\1 ${snippet}|" "$entry"
             updated=1
@@ -225,15 +334,14 @@ configure_bootloader() {
 }
 
 install_edid_and_scripts() {
-    local bin="/usr/lib/firmware/edid/virtual-display.bin"
-
     need_cmd python3
     log "Generating EDID"
     python3 "${REPO_ROOT}/scripts/create-vdisplay-edid.py" /tmp/virtual-display.bin
 
     log "Installing EDID firmware"
-    as_root install -d /usr/lib/firmware/edid
-    as_root install -m 644 /tmp/virtual-display.bin "$bin"
+    as_root install -d /usr/lib/firmware/edid /lib/firmware/edid
+    as_root install -m 644 /tmp/virtual-display.bin "$EDID_FIRMWARE"
+    as_root install -m 644 /tmp/virtual-display.bin /lib/firmware/edid/virtual-display.bin
 
     log "Installing user scripts to ${HOME}/bin"
     install -d "${HOME}/bin"
@@ -277,7 +385,11 @@ install_sunshine_config() {
 }
 
 configure_power_management() {
-    need_cmd kwriteconfig6
+    command -v kwriteconfig6 >/dev/null 2>&1 || {
+        warn "kwriteconfig6 not found; skipped power management tweaks"
+        return
+    }
+
     log "Disabling screen blanking for virtual display stability"
     kwriteconfig6 --file kscreenlockerrc --group Daemon --key Autolock false
     kwriteconfig6 --file powermanagementprofilesrc --group AC --group DPMSControl --key idleTime 0
@@ -288,8 +400,7 @@ configure_power_management() {
 }
 
 rebuild_initramfs() {
-    log "Rebuilding initramfs"
-    as_root mkinitcpio -P
+    configure_initramfs
 }
 
 main() {
@@ -303,14 +414,15 @@ main() {
         PDISPLAY="$(pick_physical_connector "$VDISPLAY")" || warn "could not auto-detect physical connector; set PDISPLAY="
     fi
 
+    log "Detected distro: $(detect_distro_label)"
+    log "Initramfs backend: $(detect_initramfs_backend)"
     log "Virtual connector: ${VDISPLAY}"
     [[ -n "$PDISPLAY" ]] && log "Physical connector: ${PDISPLAY}"
     log "Virtual mode: ${RES}"
 
     install_edid_and_scripts
-    merge_mkinitcpio
+    configure_initramfs
     configure_bootloader
-    rebuild_initramfs
     install_sunshine_config
     configure_power_management
 
@@ -319,6 +431,8 @@ main() {
 Installation complete.
 
 Configured:
+  distro          : $(detect_distro_label)
+  initramfs       : $(detect_initramfs_backend)
   virtual display : ${VDISPLAY}
   physical display: ${PDISPLAY:-unknown}
   sunshine output : ${SUNSHINE_OUTPUT}

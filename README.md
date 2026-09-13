@@ -20,16 +20,31 @@ Force-enable a spare GPU output with a custom EDID — no dummy plug required. I
 |-----------|-------|
 | GPU | NVIDIA with proprietary driver |
 | Desktop | KDE Plasma **Wayland** |
-| OS | Arch / CachyOS (uses `mkinitcpio`) |
 | Streaming | [Sunshine](https://app.lizardbyte.dev/) with KMS capture |
 | Bootloader | Limine, GRUB, or systemd-boot |
 | Spare connector | Unused HDMI or DisplayPort (nothing plugged in) |
 
 Sunshine also needs `cap_sys_admin` for KMS capture — the installer sets this automatically.
 
+## Supported distros
+
+The installer auto-detects the initramfs backend:
+
+| Backend | Distros | What the installer does |
+|---------|---------|-------------------------|
+| **mkinitcpio** | Arch, CachyOS, EndeavourOS, Manjaro, … | Adds EDID to `FILES=` in `/etc/mkinitcpio.conf`, runs `mkinitcpio -P` |
+| **dracut** | Fedora, Nobara, RHEL, openSUSE, … | Writes `/etc/dracut.conf.d/99-sunshine-vdisplay.conf`, runs `dracut -f` |
+| **initramfs-tools** | Debian, Ubuntu, Linux Mint, Pop!\_OS, … | Installs `/etc/initramfs-tools/hooks/sunshine-vdisplay-edid`, runs `update-initramfs -u -k all` |
+
+Detection order: `mkinitcpio` → `dracut` → `initramfs-tools`. Override with `INITRAMFS_BACKEND=dracut` if needed.
+
+GRUB handling also adapts per distro (`update-grub`, `grub-mkconfig`, or `grub2-mkconfig`).
+
 ## Quick start
 
 ### One-liner
+
+Works on Arch, CachyOS, Fedora, Nobara, Debian, Ubuntu, openSUSE, and other distros with one of the supported initramfs backends:
 
 ```bash
 curl -fsSL https://gitea.home.mdj2812.top/mdj2812/sunshine-vdisplay/raw/branch/main/scripts/install.sh | bash
@@ -52,12 +67,13 @@ cd sunshine-vdisplay
 
 The installer will:
 
-1. Auto-detect connectors (prefers unused **HDMI**, then **DP**)
-2. Generate and install EDID firmware to `/usr/lib/firmware/edid/`
-3. Install scripts to `~/bin` and Sunshine config to `~/.config/sunshine/`
-4. Patch `mkinitcpio.conf` and your bootloader cmdline
-5. Rebuild initramfs and apply Sunshine capabilities
-6. Disable screen blanking that breaks headless virtual outputs
+1. Detect distro and initramfs backend
+2. Auto-detect connectors (prefers unused **HDMI**, then **DP**)
+3. Generate and install EDID firmware to `/usr/lib/firmware/edid/`
+4. Install scripts to `~/bin` and Sunshine config to `~/.config/sunshine/`
+5. Patch initramfs config and your bootloader cmdline
+6. Rebuild initramfs and apply Sunshine capabilities
+7. Disable screen blanking that breaks headless virtual outputs
 
 Reboot when prompted, then connect with Moonlight — display switching is automatic.
 
@@ -72,6 +88,7 @@ Reboot when prompted, then connect with Moonlight — display switching is autom
 | `SUNSHINE_OUTPUT` | `0` | Sunshine KMS monitor index |
 | `SKIP_REBOOT` | `0` | Set to `1` to skip reboot prompt |
 | `REPO_URL` | this repo | Override clone URL |
+| `INITRAMFS_BACKEND` | auto-detect | Force `mkinitcpio`, `dracut`, or `initramfs-tools` |
 
 Local overrides are saved to `~/bin/vdisplay-common.local.sh`.
 
@@ -222,6 +239,7 @@ cat /sys/class/drm/card*-HDMI-A-1/modes
 - **4K@120** may cap at 4K@60 on virtual outputs (driver FRL limitation)
 - New EDID modes require regenerating the binary, rebuilding initramfs, and rebooting
 - Linux-only; Sunshine does not create virtual displays — this repo handles that part
+- Display switching scripts require **KDE Plasma Wayland** (`kscreen-doctor`); other desktops need different tooling
 
 ## References
 
