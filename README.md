@@ -60,8 +60,16 @@ Contributions and issues for future milestones are welcome — please tag the re
 
 Works on Arch, CachyOS, Fedora, Nobara, Debian, Ubuntu, openSUSE, and other distros with one of the supported initramfs backends:
 
+**Back up first.** The installer changes initramfs, bootloader cmdline, and system config. It shows a confirmation prompt and requires typing `yes` before making changes.
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/mdj2812/sunshine-vdisplay/main/scripts/install.sh | bash
+```
+
+For non-interactive installs (e.g. piped from curl), set `I_HAVE_BACKED_UP=1` only after you have a backup:
+
+```bash
+I_HAVE_BACKED_UP=1 curl -fsSL https://raw.githubusercontent.com/mdj2812/sunshine-vdisplay/main/scripts/install.sh | bash
 ```
 
 ### With explicit connectors
@@ -101,10 +109,64 @@ Reboot when prompted, then connect with Moonlight — display switching is autom
 | `PDISPLAY_RES` | `2560x1440@143.99` | Physical display mode |
 | `SUNSHINE_OUTPUT` | `0` | Sunshine KMS monitor index |
 | `SKIP_REBOOT` | `0` | Set to `1` to skip reboot prompt |
+| `I_HAVE_BACKED_UP` | `0` | Set to `1` to skip the startup backup confirmation |
 | `REPO_URL` | this repo | Override clone URL |
 | `INITRAMFS_BACKEND` | auto-detect | Force `mkinitcpio`, `dracut`, or `initramfs-tools` |
 
 Local overrides are saved to `~/bin/vdisplay-common.local.sh`.
+
+### Uninstall
+
+To remove a sunshine-vdisplay installation and revert boot/initramfs changes:
+
+**Back up first.** The uninstaller also changes initramfs and bootloader config. It requires typing `yes` before making changes.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mdj2812/sunshine-vdisplay/main/scripts/uninstall.sh | bash
+```
+
+For non-interactive uninstall:
+
+```bash
+I_CONFIRM_UNINSTALL=1 curl -fsSL https://raw.githubusercontent.com/mdj2812/sunshine-vdisplay/main/scripts/uninstall.sh | bash
+```
+
+From a clone:
+
+```bash
+git clone https://github.com/mdj2812/sunshine-vdisplay.git
+cd sunshine-vdisplay
+./scripts/uninstall.sh
+```
+
+Or, if you already have the repo:
+
+```bash
+./scripts/uninstall.sh
+```
+
+The uninstaller will:
+
+1. Run `vdisplay-off.sh` if present (restore physical display)
+2. Remove virtual-display kernel parameters from your bootloader
+3. Remove initramfs EDID bundling and rebuild initramfs
+4. Delete `virtual-display.bin` firmware and `~/bin/vdisplay-*` scripts
+5. Back up and strip Sunshine `global_prep_cmd` hooks for vdisplay-on/off
+6. Remove `cap_sys_admin` from the Sunshine binary
+
+Reboot when prompted.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `I_CONFIRM_UNINSTALL` | `0` | Set to `1` to skip the confirmation prompt |
+| `SKIP_REBOOT` | `0` | Set to `1` to skip reboot prompt |
+| `KEEP_SUNSHINE_CONF` | `0` | Set to `1` to leave `~/.config/sunshine/sunshine.conf` untouched |
+| `INITRAMFS_BACKEND` | auto-detect | Force `mkinitcpio`, `dracut`, or `initramfs-tools` |
+
+**Not reverted automatically:**
+
+- KDE power-management tweaks applied by the installer (screen blanking, autolock)
+- Other Sunshine settings the installer wrote (`capture`, `encoder`, `output_name`) — review `~/.config/sunshine/sunshine.conf` or restore from the backup created during uninstall
 
 ## How it works
 
@@ -132,6 +194,7 @@ Sunshine captures the virtual output via **KMS** (`capture = kms`, `encoder = nv
 | Path | Purpose |
 |------|---------|
 | `scripts/install.sh` | Full automated installer |
+| `scripts/uninstall.sh` | Remove installation and revert boot/initramfs changes |
 | `scripts/install-local.sh` | Wrapper → `install.sh` |
 | `scripts/create-vdisplay-edid.py` | EDID generator |
 | `scripts/vdisplay-on.sh` | Enable virtual, disable physical |

@@ -4,6 +4,9 @@
 # One-liner:
 #   curl -fsSL https://raw.githubusercontent.com/mdj2812/sunshine-vdisplay/main/scripts/install.sh | bash
 #
+# Uninstall:
+#   ./scripts/uninstall.sh
+#
 # With options:
 #   VDISPLAY=HDMI-A-1 PDISPLAY=DP-3 bash install.sh
 #
