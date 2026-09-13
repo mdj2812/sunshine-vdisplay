@@ -76,6 +76,8 @@ Sunshine captures the virtual output via **KMS** (`capture = kms`, `encoder = nv
 | [docs/USAGE.md](docs/USAGE.md) | Day-to-day usage, brightness, custom resolutions |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common problems and known limitations |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Milestones and planned platform support |
+| [docs/AMD.md](docs/AMD.md) | AMD GPU paths, encoders, and testing notes |
+| [docs/ALTERNATIVES.md](docs/ALTERNATIVES.md) | KDE krfb vs EDID and other approaches |
 
 ## Repository layout
 

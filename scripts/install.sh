@@ -17,9 +17,11 @@
 #   PDISPLAY_RES      Physical resolution (default: 2560x1440@143.99)
 #   SUNSHINE_OUTPUT   Sunshine KMS output index (default: 0)
 #   SKIP_REBOOT       Set to 1 to skip reboot prompt
-#   I_HAVE_BACKED_UP  Set to 1 to skip the startup backup confirmation
-#   REPO_URL          Git clone URL (used when script is piped from curl)
-#   INITRAMFS_BACKEND Force backend: mkinitcpio, dracut, initramfs-tools
+#   I_HAVE_BACKED_UP     Set to 1 to skip the startup backup confirmation
+#   KEEP_SUNSHINE_CONF   Set to 1 to leave ~/.config/sunshine/sunshine.conf untouched
+#   MERGE_SUNSHINE_CONF  Set to 1 to merge only global_prep_cmd into an existing sunshine.conf
+#   REPO_URL             Git clone URL (used when script is piped from curl)
+#   INITRAMFS_BACKEND    Force backend: mkinitcpio, dracut, initramfs-tools
 
 set -euo pipefail
 
@@ -432,11 +434,36 @@ EOF
 
 install_sunshine_config() {
     local sunshine_bin cap_path
+    local sunshine_conf="${HOME}/.config/sunshine/sunshine.conf"
+    local template backup prep_cmd
 
     install -d "${HOME}/.config/sunshine"
+    template="$(mktemp)"
     sed "s|__HOME__|${HOME}|g" "${REPO_ROOT}/config/sunshine.conf" \
         | sed "s|^output_name = .*|output_name = ${SUNSHINE_OUTPUT}|" \
-            >"${HOME}/.config/sunshine/sunshine.conf"
+            >"$template"
+    prep_cmd="$(grep '^global_prep_cmd' "$template")"
+
+    if [[ "${KEEP_SUNSHINE_CONF:-0}" == "1" ]]; then
+        warn "KEEP_SUNSHINE_CONF=1 — leaving ${sunshine_conf} untouched"
+    elif [[ -f "$sunshine_conf" ]]; then
+        backup="${sunshine_conf}.bak.sunshine-vdisplay.$(date +%Y%m%d%H%M%S)"
+        log "Backing up ${sunshine_conf} to ${backup}"
+        cp "$sunshine_conf" "$backup"
+
+        if [[ "${MERGE_SUNSHINE_CONF:-0}" == "1" ]]; then
+            log "Merging vdisplay global_prep_cmd into ${sunshine_conf}"
+            sed -i '/global_prep_cmd.*vdisplay-on\.sh/d' "$sunshine_conf"
+            printf '%s\n' "$prep_cmd" >>"$sunshine_conf"
+            warn "merged global_prep_cmd only; review ${sunshine_conf} or restore from ${backup}"
+        else
+            cp "$template" "$sunshine_conf"
+            warn "replaced ${sunshine_conf}; previous version saved as ${backup}"
+        fi
+    else
+        cp "$template" "$sunshine_conf"
+    fi
+    rm -f "$template"
 
     if sunshine_bin="$(command -v sunshine 2>/dev/null)"; then
         cap_path="$(readlink -f "$sunshine_bin")"

@@ -52,7 +52,7 @@ cd sunshine-vdisplay
 1. Detect distro and initramfs backend
 2. Auto-detect connectors (prefers unused **HDMI**, then **DP**)
 3. Generate and install EDID firmware to `/usr/lib/firmware/edid/`
-4. Install scripts to `~/bin` and Sunshine config to `~/.config/sunshine/`
+4. Install scripts to `~/bin` and Sunshine config to `~/.config/sunshine/` (backs up an existing `sunshine.conf` before replacing it)
 5. Patch initramfs config and your bootloader cmdline
 6. Rebuild initramfs and apply Sunshine capabilities
 7. Disable screen blanking that breaks headless virtual outputs
@@ -88,6 +88,8 @@ Local overrides for connector names and modes are saved to `~/bin/vdisplay-commo
 | `SUNSHINE_OUTPUT` | `0` | Sunshine KMS monitor index |
 | `SKIP_REBOOT` | `0` | Set to `1` to skip reboot prompt |
 | `I_HAVE_BACKED_UP` | `0` | Set to `1` to skip the startup backup confirmation |
+| `KEEP_SUNSHINE_CONF` | `0` | Set to `1` to leave `~/.config/sunshine/sunshine.conf` untouched |
+| `MERGE_SUNSHINE_CONF` | `0` | Set to `1` to merge only `global_prep_cmd` into an existing config (still creates a backup) |
 | `REPO_URL` | this repo | Override clone URL |
 | `INITRAMFS_BACKEND` | auto-detect | Force `mkinitcpio`, `dracut`, or `initramfs-tools` |
 
