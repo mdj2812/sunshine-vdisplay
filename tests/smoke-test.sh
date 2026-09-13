@@ -21,7 +21,10 @@ export VDISPLAY=HDMI-A-1
 export PDISPLAY=DP-1
 
 log() { printf '==> %s\n' "$*"; }
-die() { printf 'error: %s\n' "$*" >&2; exit 1; }
+die() {
+    printf 'error: %s\n' "$*" >&2
+    exit 1
+}
 
 detect_backend() {
     if [[ -f /etc/mkinitcpio.conf ]] && command -v mkinitcpio >/dev/null 2>&1; then
@@ -82,7 +85,7 @@ verify_uninstall_artifacts() {
 log "Backend: $(detect_backend)"
 log "Testing EDID generator"
 python3 "${repo_root}/scripts/create-vdisplay-edid.py" /tmp/sunshine-vdisplay-smoke-edid.bin
-test "$(wc -c < /tmp/sunshine-vdisplay-smoke-edid.bin)" -eq 256
+test "$(wc -c </tmp/sunshine-vdisplay-smoke-edid.bin)" -eq 256
 
 log "Running install.sh (smoke mode)"
 "${repo_root}/scripts/install.sh"
