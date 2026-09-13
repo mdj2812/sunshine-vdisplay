@@ -14,6 +14,7 @@
 #   PDISPLAY_RES      Physical resolution (default: 2560x1440@143.99)
 #   SUNSHINE_OUTPUT   Sunshine KMS output index (default: 0)
 #   SKIP_REBOOT       Set to 1 to skip reboot prompt
+#   I_HAVE_BACKED_UP  Set to 1 to skip the startup backup confirmation
 #   REPO_URL          Git clone URL (used when script is piped from curl)
 #   INITRAMFS_BACKEND Force backend: mkinitcpio, dracut, initramfs-tools
 
@@ -30,9 +31,70 @@ KEEP_WORK_DIR="${KEEP_WORK_DIR:-0}"
 INITRAMFS_BACKEND="${INITRAMFS_BACKEND:-}"
 EDID_FIRMWARE="/usr/lib/firmware/edid/virtual-display.bin"
 
+if [[ -t 1 ]]; then
+    C_RESET=$'\033[0m'
+    C_BOLD=$'\033[1m'
+    C_RED=$'\033[31m'
+    C_BRIGHT_RED=$'\033[1;31m'
+    C_YELLOW=$'\033[1;33m'
+    C_BG_RED=$'\033[41m'
+    C_BG_YELLOW=$'\033[43m'
+    C_BLACK=$'\033[30m'
+    C_WHITE=$'\033[97m'
+else
+    C_RESET= C_BOLD= C_RED= C_BRIGHT_RED= C_YELLOW=
+    C_BG_RED= C_BG_YELLOW= C_BLACK= C_WHITE=
+fi
+
 log() { printf '==> %s\n' "$*"; }
 warn() { printf 'warning: %s\n' "$*" >&2; }
-die() { printf 'error: %s\n' "$*" >&2; exit 1; }
+die() { printf '%berror:%s %s\n' "$C_BRIGHT_RED" "$C_RESET" "$*" >&2; exit 1; }
+
+confirm_backup() {
+    if [[ "${I_HAVE_BACKED_UP:-0}" == "1" ]]; then
+        return
+    fi
+
+    printf '\n'
+    printf '%b%s%b\n' "$C_BG_RED" \
+        "                                                                                " "$C_RESET"
+    printf '%b%s%b\n' "$C_BG_RED" \
+        "  !!!  DANGER: THIS SCRIPT MODIFIES BOOT AND DISPLAY CONFIGURATION  !!!         " "$C_RESET"
+    printf '%b%s%b\n' "$C_BG_RED" \
+        "                                                                                " "$C_RESET"
+    printf '\n'
+    printf '%b%bDO NOT RUN THIS ON A PRODUCTION MACHINE WITHOUT A RECENT BACKUP.%b\n\n' \
+        "$C_BOLD" "$C_BRIGHT_RED" "$C_RESET"
+    printf '%bThis installer will:%b\n' "$C_BOLD" "$C_RESET"
+    printf '  %b•%b Rebuild your %binitramfs%b\n' "$C_RED" "$C_RESET" "$C_YELLOW" "$C_RESET"
+    printf '  %b•%b Edit your %bbootloader kernel command line%b (GRUB / Limine / systemd-boot)\n' \
+        "$C_RED" "$C_RESET" "$C_YELLOW" "$C_RESET"
+    printf '  %b•%b Install firmware under %b/usr/lib/firmware/edid/%b\n' \
+        "$C_RED" "$C_RESET" "$C_YELLOW" "$C_RESET"
+    printf '  %b•%b Overwrite %b~/.config/sunshine/sunshine.conf%b and scripts in %b~/bin/%b\n\n' \
+        "$C_RED" "$C_RESET" "$C_YELLOW" "$C_RESET" "$C_YELLOW" "$C_RESET"
+    printf '%bIf anything goes wrong you may get:%b\n' "$C_BOLD" "$C_RESET"
+    printf '  %b-%b An unbootable system until you restore from backup\n' "$C_BRIGHT_RED" "$C_RESET"
+    printf '  %b-%b A black screen or wrong display until config is reverted\n' "$C_BRIGHT_RED" "$C_RESET"
+    printf '  %b-%b Broken Sunshine capture until settings are fixed\n\n' "$C_BRIGHT_RED" "$C_RESET"
+    printf '%b%s%b\n' "$C_BG_YELLOW" \
+        "  Create a snapshot, btrfs subvolume backup, or Timeshift restore point NOW.  " "$C_RESET"
+    printf '%b%s%b\n\n' "$C_BG_YELLOW" \
+        "  Know how to undo initramfs + bootloader changes before you continue.         " "$C_RESET"
+
+    if [[ ! -t 0 ]]; then
+        die "non-interactive install blocked — set I_HAVE_BACKED_UP=1 only after you have a backup"
+    fi
+
+    printf '%bType %byes%b to confirm you have a backup and accept the risk: %b' \
+        "$C_BOLD" "$C_BRIGHT_RED" "$C_RESET" "$C_YELLOW"
+    read -r answer
+    printf '%b' "$C_RESET"
+    if [[ "$answer" != "yes" ]]; then
+        die "aborted — no changes were made; back up first, then run again"
+    fi
+    printf '\n'
+}
 
 need_cmd() {
     command -v "$1" >/dev/null 2>&1 || die "missing required command: $1"
@@ -404,6 +466,7 @@ rebuild_initramfs() {
 }
 
 main() {
+    confirm_backup
     need_cmd sudo
     prepare_repo
 
