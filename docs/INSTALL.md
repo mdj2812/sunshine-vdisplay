@@ -56,10 +56,26 @@ cd sunshine-vdisplay
 5. Patch initramfs config and your bootloader cmdline
 6. Rebuild initramfs and apply Sunshine capabilities
 7. Disable screen blanking that breaks headless virtual outputs
+8. Configure Sunshine `global_prep_cmd` to swap displays when a Moonlight session starts and ends
 
-Reboot when prompted, then connect with Moonlight — display switching is automatic.
+Reboot when prompted, then connect with Moonlight.
 
-Local overrides are saved to `~/bin/vdisplay-common.local.sh`.
+### Automatic display switching
+
+The installer writes this to `~/.config/sunshine/sunshine.conf`:
+
+```ini
+global_prep_cmd = [{"do":"~/bin/vdisplay-on.sh","undo":"~/bin/vdisplay-off.sh"}]
+```
+
+| Event | What happens |
+|-------|----------------|
+| **Moonlight session starts** | `vdisplay-on.sh` enables the virtual display, tunes brightness/scale, then **disables the physical monitor** |
+| **Moonlight session ends** | `vdisplay-off.sh` **restores the physical monitor** and disables the virtual display |
+
+The virtual display is enabled before the physical one is disabled — KDE requires at least one active output. Resolution can follow the client via `SUNSHINE_CLIENT_*` env vars (see [USAGE.md](USAGE.md)).
+
+Local overrides for connector names and modes are saved to `~/bin/vdisplay-common.local.sh`.
 
 ### Installer options
 

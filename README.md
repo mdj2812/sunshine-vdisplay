@@ -34,7 +34,9 @@ Sunshine also needs `cap_sys_admin` for KMS capture — the installer sets this 
 curl -fsSL https://raw.githubusercontent.com/mdj2812/sunshine-vdisplay/main/scripts/install.sh | bash
 ```
 
-Reboot when prompted, then connect with Moonlight — display switching is automatic.
+Reboot when prompted, then connect with Moonlight.
+
+When a Moonlight **session starts**, Sunshine runs `vdisplay-on.sh`: the **virtual display turns on** and your **physical monitor turns off**. When the session **ends**, `vdisplay-off.sh` restores the physical monitor and disables the virtual display. No manual steps needed during streaming.
 
 To remove the installation:
 
