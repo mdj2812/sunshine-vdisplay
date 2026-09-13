@@ -23,6 +23,8 @@ List both when reporting test results.
 
 Open an [AMD testing issue](https://github.com/mdj2812/sunshine-vdisplay/issues/new?template=amd-testing.md) with:
 
+Issues created with the **`[AMD]`** title prefix are automatically assigned to the **AMD GPU** milestone.
+
 - GPU model and driver (`amdgpu`, Mesa/RADV versions)
 - Distro, kernel, bootloader, KDE Plasma version
 - Virtual display path (EDID / krfb / vkms)
