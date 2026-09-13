@@ -41,6 +41,25 @@ cat /sys/class/drm/card*-HDMI-A-1/status   # connected
 systemctl --user restart sunshine
 ```
 
+## Automation
+
+Sunshine `global_prep_cmd` switches displays automatically:
+
+- **Session start:** `vdisplay-on.sh` (virtual on, physical off)
+- **Session end:** `vdisplay-off.sh` (physical on, virtual off)
+
+Brightness tuning on the virtual display:
+
+- Scale matched to the physical monitor (`1.5`)
+- Brightness `100%`, dimming floor `100%`
+- Night Color disabled while streaming
+
+Tune with environment variables if needed:
+
+```bash
+VDISPLAY_BRIGHTNESS=100 VDISPLAY_DIMMING=100 VDISPLAY_SCALE=1.5 ~/bin/vdisplay-on.sh
+```
+
 ## Notes
 
 - `output_name` in Sunshine must be a **numeric KMS index**, not a connector name.

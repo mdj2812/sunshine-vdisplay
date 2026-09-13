@@ -20,4 +20,5 @@ else
     echo "$VDISPLAY not present"
 fi
 
+restore_night_color
 show_outputs

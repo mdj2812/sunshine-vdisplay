@@ -5,7 +5,10 @@ set -euo pipefail
 
 source "$(dirname "$0")/vdisplay-common.sh"
 
-RES="${1:-$RES}"
+RES="$(pick_stream_resolution)"
+if [[ -n "${1:-}" ]]; then
+    RES="$1"
+fi
 
 if ! connector_present "$VDISPLAY"; then
     echo "Virtual display $VDISPLAY is not connected at the kernel level."
@@ -20,7 +23,9 @@ if ! kscreen_has_output "$VDISPLAY"; then
     exit 1
 fi
 
-echo "Switching to virtual display..."
+echo "Switching to virtual display at ${RES}..."
+disable_night_color
 enable_output "$VDISPLAY" "$RES" 0 0 1
+tune_virtual_display "$VDISPLAY"
 disable_output "$PDISPLAY"
 show_outputs
