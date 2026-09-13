@@ -22,6 +22,9 @@
 #   MERGE_SUNSHINE_CONF  Set to 1 to merge only global_prep_cmd into an existing sunshine.conf
 #   REPO_URL             Git clone URL (used when script is piped from curl)
 #   INITRAMFS_BACKEND    Force backend: mkinitcpio, dracut, initramfs-tools
+#   SKIP_BOOTLOADER      Set to 1 to skip bootloader cmdline changes (for VM smoke tests)
+#   SKIP_INITRAMFS_REBUILD Set to 1 to write initramfs config but skip rebuild
+#   SKIP_POWER_MGMT      Set to 1 to skip KDE power-management tweaks
 
 set -euo pipefail
 
@@ -293,22 +296,34 @@ configure_initramfs() {
     case "$backend" in
         mkinitcpio)
             merge_mkinitcpio || die "failed to configure mkinitcpio"
-            log "Rebuilding initramfs with mkinitcpio"
-            as_root mkinitcpio -P
+            if [[ "${SKIP_INITRAMFS_REBUILD:-0}" == "1" ]]; then
+                warn "SKIP_INITRAMFS_REBUILD=1 — skipped mkinitcpio -P"
+            else
+                log "Rebuilding initramfs with mkinitcpio"
+                as_root mkinitcpio -P
+            fi
             ;;
         dracut)
             merge_dracut
-            log "Rebuilding initramfs with dracut"
-            if as_root dracut --regenerate-all -f 2>/dev/null; then
-                :
+            if [[ "${SKIP_INITRAMFS_REBUILD:-0}" == "1" ]]; then
+                warn "SKIP_INITRAMFS_REBUILD=1 — skipped dracut"
             else
-                as_root dracut -f
+                log "Rebuilding initramfs with dracut"
+                if as_root dracut --regenerate-all -f 2>/dev/null; then
+                    :
+                else
+                    as_root dracut -f
+                fi
             fi
             ;;
         initramfs-tools)
             merge_initramfs_tools
-            log "Rebuilding initramfs with update-initramfs"
-            as_root update-initramfs -u -k all
+            if [[ "${SKIP_INITRAMFS_REBUILD:-0}" == "1" ]]; then
+                warn "SKIP_INITRAMFS_REBUILD=1 — skipped update-initramfs"
+            else
+                log "Rebuilding initramfs with update-initramfs"
+                as_root update-initramfs -u -k all
+            fi
             ;;
         *)
             die "unsupported initramfs backend; install mkinitcpio, dracut, or initramfs-tools"
@@ -395,6 +410,11 @@ merge_systemd_boot() {
 }
 
 configure_bootloader() {
+    if [[ "${SKIP_BOOTLOADER:-0}" == "1" ]]; then
+        warn "SKIP_BOOTLOADER=1 — skipped bootloader configuration"
+        return
+    fi
+
     if [[ -f /etc/default/limine ]]; then
         merge_limine
     elif [[ -f /etc/default/grub ]]; then
@@ -483,6 +503,11 @@ install_sunshine_config() {
 }
 
 configure_power_management() {
+    if [[ "${SKIP_POWER_MGMT:-0}" == "1" ]]; then
+        warn "SKIP_POWER_MGMT=1 — skipped power management tweaks"
+        return
+    fi
+
     command -v kwriteconfig6 >/dev/null 2>&1 || {
         warn "kwriteconfig6 not found; skipped power management tweaks"
         return

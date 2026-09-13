@@ -12,6 +12,8 @@
 #   SKIP_REBOOT          Set to 1 to skip reboot prompt
 #   KEEP_SUNSHINE_CONF   Set to 1 to leave ~/.config/sunshine/sunshine.conf untouched
 #   INITRAMFS_BACKEND    Force backend: mkinitcpio, dracut, initramfs-tools
+#   SKIP_BOOTLOADER      Set to 1 to skip bootloader cmdline cleanup
+#   SKIP_INITRAMFS_REBUILD Set to 1 to remove initramfs config but skip rebuild
 
 set -euo pipefail
 
@@ -176,6 +178,11 @@ remove_systemd_boot() {
 }
 
 remove_bootloader() {
+    if [[ "${SKIP_BOOTLOADER:-0}" == "1" ]]; then
+        warn "SKIP_BOOTLOADER=1 — skipped bootloader cleanup"
+        return
+    fi
+
     if [[ -f /etc/default/limine ]]; then
         remove_limine
     elif [[ -f /etc/default/grub ]]; then
@@ -221,22 +228,34 @@ rebuild_initramfs() {
     case "$backend" in
         mkinitcpio)
             remove_mkinitcpio || warn "mkinitcpio.conf not found"
-            log "Rebuilding initramfs with mkinitcpio"
-            as_root mkinitcpio -P
+            if [[ "${SKIP_INITRAMFS_REBUILD:-0}" == "1" ]]; then
+                warn "SKIP_INITRAMFS_REBUILD=1 — skipped mkinitcpio -P"
+            else
+                log "Rebuilding initramfs with mkinitcpio"
+                as_root mkinitcpio -P
+            fi
             ;;
         dracut)
             remove_dracut
-            log "Rebuilding initramfs with dracut"
-            if as_root dracut --regenerate-all -f 2>/dev/null; then
-                :
+            if [[ "${SKIP_INITRAMFS_REBUILD:-0}" == "1" ]]; then
+                warn "SKIP_INITRAMFS_REBUILD=1 — skipped dracut"
             else
-                as_root dracut -f
+                log "Rebuilding initramfs with dracut"
+                if as_root dracut --regenerate-all -f 2>/dev/null; then
+                    :
+                else
+                    as_root dracut -f
+                fi
             fi
             ;;
         initramfs-tools)
             remove_initramfs_tools
-            log "Rebuilding initramfs with update-initramfs"
-            as_root update-initramfs -u -k all
+            if [[ "${SKIP_INITRAMFS_REBUILD:-0}" == "1" ]]; then
+                warn "SKIP_INITRAMFS_REBUILD=1 — skipped update-initramfs"
+            else
+                log "Rebuilding initramfs with update-initramfs"
+                as_root update-initramfs -u -k all
+            fi
             ;;
         *)
             warn "unknown initramfs backend; remove initramfs config manually"
