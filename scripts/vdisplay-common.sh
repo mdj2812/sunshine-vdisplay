@@ -17,6 +17,9 @@ export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=${XDG_RUN
 
 mkdir -p "$STATE_DIR"
 
+_local_overrides="${HOME}/bin/vdisplay-common.local.sh"
+[[ -f "$_local_overrides" ]] && source "$_local_overrides"
+
 kscreen() {
     kscreen-doctor "$@"
 }

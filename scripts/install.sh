@@ -1,0 +1,345 @@
+#!/usr/bin/env bash
+# Full installer for NVIDIA + KDE Wayland Sunshine virtual display.
+#
+# One-liner:
+#   curl -fsSL https://gitea.home.mdj2812.top/mdj2812/sunshine-vdisplay/raw/branch/main/scripts/install.sh | bash
+#
+# With options:
+#   VDISPLAY=HDMI-A-1 PDISPLAY=DP-3 bash install.sh
+#
+# Environment variables:
+#   VDISPLAY          Virtual connector (default: first disconnected HDMI/DP)
+#   PDISPLAY          Physical connector (default: first connected non-virtual)
+#   RES               Virtual resolution (default: 2560x1600@120)
+#   PDISPLAY_RES      Physical resolution (default: 2560x1440@143.99)
+#   SUNSHINE_OUTPUT   Sunshine KMS output index (default: 0)
+#   SKIP_REBOOT       Set to 1 to skip reboot prompt
+#   REPO_URL          Git clone URL (used when script is piped from curl)
+
+set -euo pipefail
+
+VDISPLAY="${VDISPLAY:-}"
+PDISPLAY="${PDISPLAY:-}"
+RES="${RES:-2560x1600@120}"
+PDISPLAY_RES="${PDISPLAY_RES:-2560x1440@143.99}"
+SUNSHINE_OUTPUT="${SUNSHINE_OUTPUT:-0}"
+REPO_URL="${REPO_URL:-https://gitea.home.mdj2812.top/mdj2812/sunshine-vdisplay.git}"
+WORK_DIR="${WORK_DIR:-$(mktemp -d /tmp/sunshine-vdisplay.XXXXXX)}"
+KEEP_WORK_DIR="${KEEP_WORK_DIR:-0}"
+
+log() { printf '==> %s\n' "$*"; }
+warn() { printf 'warning: %s\n' "$*" >&2; }
+die() { printf 'error: %s\n' "$*" >&2; exit 1; }
+
+need_cmd() {
+    command -v "$1" >/dev/null 2>&1 || die "missing required command: $1"
+}
+
+cleanup() {
+    if [[ "$KEEP_WORK_DIR" != "1" && -d "$WORK_DIR" ]]; then
+        rm -rf "$WORK_DIR"
+    fi
+}
+trap cleanup EXIT
+
+as_root() {
+    if [[ "${EUID}" -eq 0 ]]; then
+        "$@"
+    else
+        sudo "$@"
+    fi
+}
+
+connector_status() {
+    local connector="$1"
+    local path
+    for path in /sys/class/drm/card*-"${connector}"/status; do
+        [[ -f "$path" ]] || continue
+        cat "$path"
+        return 0
+    done
+    return 1
+}
+
+list_connectors() {
+    local path connector
+    for path in /sys/class/drm/card*-*; do
+        [[ -f "$path/status" ]] || continue
+        connector="$(basename "$path")"
+        connector="${connector#card*-}"
+        printf '%s:%s\n' "$connector" "$(cat "$path/status")"
+    done
+}
+
+pick_virtual_connector() {
+    local connector status
+    while IFS=: read -r connector status; do
+        [[ "$status" == "disconnected" ]] || continue
+        case "$connector" in
+            HDMI-*)
+                echo "$connector"
+                return 0
+                ;;
+        esac
+    done < <(list_connectors)
+
+    while IFS=: read -r connector status; do
+        [[ "$status" == "disconnected" ]] || continue
+        case "$connector" in
+            DP-*|eDP-*)
+                echo "$connector"
+                return 0
+                ;;
+        esac
+    done < <(list_connectors)
+    return 1
+}
+
+pick_physical_connector() {
+    local line connector status virtual="$1"
+    while IFS=: read -r connector status; do
+        [[ "$status" == "connected" ]] || continue
+        [[ "$connector" == "$virtual" ]] && continue
+        case "$connector" in
+            HDMI-*|DP-*|eDP-*)
+                echo "$connector"
+                return 0
+                ;;
+        esac
+    done < <(list_connectors)
+    return 1
+}
+
+prepare_repo() {
+    if [[ -n "${SUNSHINE_VDISPLAY_REPO:-}" && -f "${SUNSHINE_VDISPLAY_REPO}/scripts/create-vdisplay-edid.py" ]]; then
+        REPO_ROOT="${SUNSHINE_VDISPLAY_REPO}"
+        return
+    fi
+
+    if [[ -n "${BASH_SOURCE[0]:-}" && "${BASH_SOURCE[0]}" != bash && -f "${BASH_SOURCE[0]}" ]]; then
+        local maybe_root
+        maybe_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+        if [[ -f "${maybe_root}/scripts/create-vdisplay-edid.py" ]]; then
+            REPO_ROOT="$maybe_root"
+            return
+        fi
+    fi
+
+    need_cmd git
+    log "Fetching repository into ${WORK_DIR}"
+    git clone --depth 1 "$REPO_URL" "$WORK_DIR"
+    REPO_ROOT="$WORK_DIR"
+}
+
+merge_mkinitcpio() {
+    local conf="/etc/mkinitcpio.conf"
+    local entry="/usr/lib/firmware/edid/virtual-display.bin"
+
+    [[ -f "$conf" ]] || die "mkinitcpio not found; this installer targets Arch/CachyOS"
+
+    if grep -q 'virtual-display.bin' "$conf"; then
+        log "mkinitcpio.conf already references virtual-display.bin"
+        return
+    fi
+
+    log "Updating ${conf}"
+    if grep -q '^FILES=' "$conf"; then
+        as_root sed -i "s|^FILES=(\\(.*\\))|FILES=(\\1 ${entry})|" "$conf"
+    else
+        as_root bash -c "echo 'FILES=(${entry})' >> '$conf'"
+    fi
+}
+
+kernel_param_snippet() {
+    printf 'drm.edid_firmware=%s:edid/virtual-display.bin video=%s:e' "$VDISPLAY" "$VDISPLAY"
+}
+
+merge_limine() {
+    local conf="/etc/default/limine"
+    local snippet
+
+    [[ -f "$conf" ]] || return 1
+    snippet="$(kernel_param_snippet)"
+
+    if grep -q 'virtual-display.bin' "$conf"; then
+        log "Replacing existing virtual-display kernel params in ${conf}"
+        as_root sed -i -E 's| drm\.edid_firmware=[^ "]+:edid/virtual-display\.bin video=[^ "]+:e||g' "$conf"
+    fi
+
+    if ! grep -qF "$snippet" "$conf"; then
+        log "Updating ${conf}"
+        as_root sed -i "s|^KERNEL_CMDLINE\[default\]+=\"\(.*\)\"|KERNEL_CMDLINE[default]+=\"\1 ${snippet}\"|" "$conf"
+    fi
+
+    need_cmd limine-update
+    as_root limine-update
+}
+
+merge_grub() {
+    local conf="/etc/default/grub"
+    local snippet
+
+    [[ -f "$conf" ]] || return 1
+    snippet="$(kernel_param_snippet)"
+
+    if grep -q 'virtual-display.bin' "$conf"; then
+        as_root sed -i -E 's| drm\\.edid_firmware=[^ "]+:edid/virtual-display\\.bin video=[^ "]+:e||g' "$conf"
+    fi
+
+    log "Updating ${conf}"
+    as_root sed -i "s/^GRUB_CMDLINE_LINUX_DEFAULT=\"\\(.*\\)\"/GRUB_CMDLINE_LINUX_DEFAULT=\"\\1 ${snippet}\"/" "$conf"
+    need_cmd grub-mkconfig
+    as_root grub-mkconfig -o /boot/grub/grub.cfg
+}
+
+merge_systemd_boot() {
+    local entry snippet updated=0
+
+    snippet="$(kernel_param_snippet)"
+    shopt -s nullglob
+    for entry in /boot/loader/entries/*.conf; do
+        [[ -f "$entry" ]] || continue
+        if grep -q '^options ' "$entry"; then
+            if grep -q 'virtual-display.bin' "$entry"; then
+                as_root sed -i -E 's| drm\\.edid_firmware=[^ ]+:edid/virtual-display\\.bin video=[^ ]+:e||g' "$entry"
+            fi
+            as_root sed -i "s|^options \\(.*\\)|options \\1 ${snippet}|" "$entry"
+            updated=1
+        fi
+    done
+    shopt -u nullglob
+    [[ "$updated" -eq 1 ]] || return 1
+    log "Updated systemd-boot entries"
+}
+
+configure_bootloader() {
+    if [[ -f /etc/default/limine ]]; then
+        merge_limine
+    elif [[ -f /etc/default/grub ]]; then
+        merge_grub
+    elif compgen -G "/boot/loader/entries/*.conf" >/dev/null; then
+        merge_systemd_boot
+    else
+        die "unsupported bootloader; manually add: $(kernel_param_snippet)"
+    fi
+}
+
+install_edid_and_scripts() {
+    local bin="/usr/lib/firmware/edid/virtual-display.bin"
+
+    need_cmd python3
+    log "Generating EDID"
+    python3 "${REPO_ROOT}/scripts/create-vdisplay-edid.py" /tmp/virtual-display.bin
+
+    log "Installing EDID firmware"
+    as_root install -d /usr/lib/firmware/edid
+    as_root install -m 644 /tmp/virtual-display.bin "$bin"
+
+    log "Installing user scripts to ${HOME}/bin"
+    install -d "${HOME}/bin"
+    install -m 755 "${REPO_ROOT}/scripts/"*.py "${HOME}/bin/"
+    install -m 755 "${REPO_ROOT}/scripts/vdisplay-common.sh" "${HOME}/bin/"
+    install -m 755 "${REPO_ROOT}/scripts/vdisplay-on.sh" "${HOME}/bin/"
+    install -m 755 "${REPO_ROOT}/scripts/vdisplay-off.sh" "${HOME}/bin/"
+
+    cat > "${HOME}/bin/vdisplay-common.local.sh" <<EOF
+# Local overrides generated by install.sh
+VDISPLAY="${VDISPLAY}"
+PDISPLAY="${PDISPLAY}"
+RES="${RES}"
+PDISPLAY_RES="${PDISPLAY_RES}"
+EOF
+}
+
+install_sunshine_config() {
+    local sunshine_bin cap_path
+
+    install -d "${HOME}/.config/sunshine"
+    sed "s|__HOME__|${HOME}|g" "${REPO_ROOT}/config/sunshine.conf" \
+        | sed "s|^output_name = .*|output_name = ${SUNSHINE_OUTPUT}|" \
+        > "${HOME}/.config/sunshine/sunshine.conf"
+
+    if sunshine_bin="$(command -v sunshine 2>/dev/null)"; then
+        cap_path="$(readlink -f "$sunshine_bin")"
+        log "Ensuring Sunshine capabilities on ${cap_path}"
+        as_root setcap cap_sys_admin,cap_sys_nice+p "$cap_path" || warn "setcap failed; KMS capture may not work"
+    else
+        warn "sunshine not installed; skipped setcap"
+    fi
+
+    if systemctl --user is-enabled sunshine.service >/dev/null 2>&1 \
+        || systemctl --user is-enabled app-dev.lizardbyte.app.Sunshine.service >/dev/null 2>&1; then
+        log "Restarting Sunshine"
+        systemctl --user restart sunshine.service 2>/dev/null \
+            || systemctl --user restart app-dev.lizardbyte.app.Sunshine.service 2>/dev/null \
+            || true
+    fi
+}
+
+configure_power_management() {
+    need_cmd kwriteconfig6
+    log "Disabling screen blanking for virtual display stability"
+    kwriteconfig6 --file kscreenlockerrc --group Daemon --key Autolock false
+    kwriteconfig6 --file powermanagementprofilesrc --group AC --group DPMSControl --key idleTime 0
+    kwriteconfig6 --file powermanagementprofilesrc --group AC --group DPMSControl --key lockBeforeTurnOff 0
+    kwriteconfig6 --file powermanagementprofilesrc --group AC --group DimDisplay --key idleTime 0
+    kwriteconfig6 --file powermanagementprofilesrc --group Battery --group DPMSControl --key idleTime 0
+    kwriteconfig6 --file powermanagementprofilesrc --group Battery --group DimDisplay --key idleTime 0
+}
+
+rebuild_initramfs() {
+    log "Rebuilding initramfs"
+    as_root mkinitcpio -P
+}
+
+main() {
+    need_cmd sudo
+    prepare_repo
+
+    if [[ -z "$VDISPLAY" ]]; then
+        VDISPLAY="$(pick_virtual_connector)" || die "could not auto-detect a disconnected HDMI/DP connector; set VDISPLAY="
+    fi
+    if [[ -z "$PDISPLAY" ]]; then
+        PDISPLAY="$(pick_physical_connector "$VDISPLAY")" || warn "could not auto-detect physical connector; set PDISPLAY="
+    fi
+
+    log "Virtual connector: ${VDISPLAY}"
+    [[ -n "$PDISPLAY" ]] && log "Physical connector: ${PDISPLAY}"
+    log "Virtual mode: ${RES}"
+
+    install_edid_and_scripts
+    merge_mkinitcpio
+    configure_bootloader
+    rebuild_initramfs
+    install_sunshine_config
+    configure_power_management
+
+    cat <<EOF
+
+Installation complete.
+
+Configured:
+  virtual display : ${VDISPLAY}
+  physical display: ${PDISPLAY:-unknown}
+  sunshine output : ${SUNSHINE_OUTPUT}
+
+Next:
+  sudo reboot
+
+After reboot:
+  ~/bin/vdisplay-on.sh
+  cat /sys/class/drm/card*-${VDISPLAY}/status
+
+EOF
+
+    if [[ "${SKIP_REBOOT:-0}" != "1" && -t 0 ]]; then
+        read -r -p "Reboot now? [y/N] " answer
+        if [[ "$answer" =~ ^[Yy]$ ]]; then
+            as_root reboot
+        fi
+    elif [[ "${SKIP_REBOOT:-0}" != "1" ]]; then
+        echo "Reboot manually when ready: sudo reboot"
+    fi
+}
+
+main "$@"

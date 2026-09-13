@@ -34,13 +34,36 @@ Your connector names will differ — check `/sys/class/drm/card*-* /status`.
 
 ## Quick start
 
+**One-liner (Arch/CachyOS + Limine + NVIDIA + KDE):**
+
+```bash
+curl -fsSL https://gitea.home.mdj2812.top/mdj2812/sunshine-vdisplay/raw/branch/main/scripts/install.sh | bash
+```
+
+**With explicit connectors:**
+
+```bash
+VDISPLAY=HDMI-A-1 PDISPLAY=DP-3 bash <(curl -fsSL https://gitea.home.mdj2812.top/mdj2812/sunshine-vdisplay/raw/branch/main/scripts/install.sh)
+```
+
+**From a clone:**
+
 ```bash
 git clone https://gitea.home.mdj2812.top/mdj2812/sunshine-vdisplay.git
 cd sunshine-vdisplay
-./scripts/install-local.sh
+./scripts/install.sh
 ```
 
-Then merge the system snippets, rebuild initramfs, update your bootloader, and reboot. See **Customize for your machine** below.
+The installer will:
+
+1. Generate and install the EDID firmware
+2. Install scripts to `~/bin`
+3. Configure Sunshine (`global_prep_cmd`, KMS capture)
+4. Update `mkinitcpio.conf` and your bootloader (Limine, GRUB, or systemd-boot)
+5. Rebuild initramfs
+6. Disable screen blanking that breaks virtual displays
+
+Then reboot when prompted.
 
 ## Customize for your machine
 
