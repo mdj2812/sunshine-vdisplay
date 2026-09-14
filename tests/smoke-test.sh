@@ -19,6 +19,7 @@ export SKIP_INITRAMFS_REBUILD=1
 export SKIP_POWER_MGMT=1
 export VDISPLAY=HDMI-A-1
 export PDISPLAY=DP-1
+export SKIP_EDID_PROMPT=1
 
 log() { printf '==> %s\n' "$*"; }
 die() {
@@ -84,7 +85,10 @@ verify_uninstall_artifacts() {
 
 log "Backend: $(detect_backend)"
 log "Testing EDID generator"
-python3 "${repo_root}/scripts/create-vdisplay-edid.py" /tmp/sunshine-vdisplay-smoke-edid.bin
+python3 "${repo_root}/scripts/create-vdisplay-edid.py" \
+    --primary 2560x1440@120 \
+    --extra 1920x1080@60,3840x2160@60 \
+    /tmp/sunshine-vdisplay-smoke-edid.bin
 test "$(wc -c </tmp/sunshine-vdisplay-smoke-edid.bin)" -eq 256
 
 log "Running install.sh (smoke mode)"

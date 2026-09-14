@@ -3,7 +3,8 @@
 
 VDISPLAY="${VDISPLAY:-HDMI-A-1}"
 PDISPLAY="${PDISPLAY:-DP-3}"
-RES="${RES:-2560x1600@120}"
+RES="${RES:-2560x1440@120}"
+EDID_MODES="${EDID_MODES:-$RES}"
 PDISPLAY_RES="${PDISPLAY_RES:-2560x1440@143.99}"
 VDISPLAY_SCALE="${VDISPLAY_SCALE:-1.5}"
 VDISPLAY_BRIGHTNESS="${VDISPLAY_BRIGHTNESS:-100}"
@@ -66,7 +67,51 @@ pick_stream_resolution() {
         return
     fi
 
-    echo "${width}x${height}@${fps}"
+    local requested="${width}x${height}@${fps}"
+    local mode candidate best="" best_score=-1
+    local req_w="$width" req_h="$height" req_fps="$fps"
+    local mode_w mode_h mode_fps aspect_req aspect_mode score
+
+    IFS=',' read -r -a _edid_modes <<< "$EDID_MODES"
+    for mode in "${_edid_modes[@]}"; do
+        mode="${mode// /}"
+        [[ -n "$mode" ]] || continue
+        if [[ "$mode" == "$requested" ]]; then
+            echo "$requested"
+            return
+        fi
+    done
+
+    aspect_req="$(awk "BEGIN { printf \"%.6f\", ${req_w}/${req_h} }")"
+    for mode in "${_edid_modes[@]}"; do
+        mode="${mode// /}"
+        [[ "$mode" =~ ^([0-9]+)x([0-9]+)@([0-9.]+)$ ]] || continue
+        mode_w="${BASH_REMATCH[1]}"
+        mode_h="${BASH_REMATCH[2]}"
+        mode_fps="${BASH_REMATCH[3]}"
+
+        if [[ "$mode_w" == "$req_w" && "$mode_h" == "$req_h" ]]; then
+            score=$((1000000000 - ${mode_fps%.*} * 1000))
+        else
+            aspect_mode="$(awk "BEGIN { printf \"%.6f\", ${mode_w}/${mode_h} }")"
+            if [[ "$aspect_mode" != "$aspect_req" ]]; then
+                continue
+            fi
+            score=$((1000000 - (mode_w - req_w) * (mode_w - req_w) - (mode_h - req_h) * (mode_h - req_h)))
+        fi
+
+        if ((score > best_score)); then
+            best_score=$score
+            best="$mode"
+        fi
+    done
+
+    if [[ -n "$best" ]]; then
+        echo "$best"
+        return
+    fi
+
+    echo "$RES"
 }
 
 disable_output() {

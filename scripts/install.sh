@@ -13,7 +13,9 @@
 # Environment variables:
 #   VDISPLAY          Virtual connector (default: first disconnected HDMI/DP)
 #   PDISPLAY          Physical connector (default: first connected non-virtual)
-#   RES               Virtual resolution (default: 2560x1600@120)
+#   RES               Primary virtual display mode (default: 2560x1440@120)
+#   EXTRA_MODES       Comma-separated additional EDID modes (optional)
+#   SKIP_EDID_PROMPT  Set to 1 to skip interactive EDID mode selection
 #   PDISPLAY_RES      Physical resolution (default: 2560x1440@143.99)
 #   SUNSHINE_OUTPUT   Sunshine KMS output index (default: 0)
 #   SKIP_REBOOT       Set to 1 to skip reboot prompt
@@ -30,7 +32,14 @@ set -euo pipefail
 
 VDISPLAY="${VDISPLAY:-}"
 PDISPLAY="${PDISPLAY:-}"
-RES="${RES:-2560x1600@120}"
+RES="${RES:-2560x1440@120}"
+if [[ -n "${EXTRA_MODES+x}" ]]; then
+    EXTRA_MODES_PROVIDED=1
+else
+    EXTRA_MODES_PROVIDED=0
+fi
+EXTRA_MODES="${EXTRA_MODES-}"
+EDID_MODES="${EDID_MODES-}"
 PDISPLAY_RES="${PDISPLAY_RES:-2560x1440@143.99}"
 SUNSHINE_OUTPUT="${SUNSHINE_OUTPUT:-0}"
 REPO_URL="${REPO_URL:-https://github.com/mdj2812/sunshine-vdisplay.git}"
@@ -187,6 +196,98 @@ pick_physical_connector() {
         esac
     done < <(list_connectors)
     return 1
+}
+
+default_extra_modes() {
+    local primary="$1"
+    local defaults="2560x1440@60,2560x1600@120,2560x1600@60,1920x1080@120,1920x1080@60"
+    local item out=""
+
+    for item in ${defaults//,/ }; do
+        [[ "$item" == "$primary" ]] && continue
+        if [[ -n "$out" ]]; then
+            out+=",${item}"
+        else
+            out="$item"
+        fi
+    done
+    printf '%s' "$out"
+}
+
+have_install_tty() {
+    [[ -t 0 ]] && return 0
+    { : </dev/tty; } 2>/dev/null
+}
+
+run_edid_setup_tui() {
+    need_cmd python3
+    local -a tui_args=(--default-primary "$RES")
+    local tmp_json primary
+
+    if [[ "$EXTRA_MODES_PROVIDED" == "1" ]]; then
+        tui_args+=(--skip-extra --default-extra "$EXTRA_MODES")
+    elif [[ -n "$EXTRA_MODES" ]]; then
+        tui_args+=(--default-extra "$EXTRA_MODES")
+    fi
+
+    tmp_json="$(mktemp "${TMPDIR:-/tmp}/sunshine-edid.XXXXXX")"
+    # Keep stdin/stdout/stderr on the terminal; curses breaks inside $().
+    if ! python3 "${REPO_ROOT}/scripts/edid-setup-tui.py" \
+        "${tui_args[@]}" --output "$tmp_json" \
+        </dev/tty >/dev/tty 2>&1; then
+        rm -f "$tmp_json"
+        die "EDID setup cancelled"
+    fi
+
+    if [[ ! -s "$tmp_json" ]]; then
+        rm -f "$tmp_json"
+        die "EDID setup returned no result"
+    fi
+
+    primary="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["primary"])' "$tmp_json")"
+    RES="$primary"
+
+    if [[ "$EXTRA_MODES_PROVIDED" == "0" ]]; then
+        EXTRA_MODES="$(python3 -c 'import json,sys; print(",".join(json.load(open(sys.argv[1]))["extra"]))' "$tmp_json")"
+    fi
+    rm -f "$tmp_json"
+}
+
+configure_edid_modes() {
+    if [[ "${SKIP_EDID_PROMPT:-0}" == "1" ]]; then
+        if [[ -z "$EXTRA_MODES" ]]; then
+            EXTRA_MODES="$(default_extra_modes "$RES")"
+        fi
+        EDID_MODES="$RES"
+        if [[ -n "$EXTRA_MODES" ]]; then
+            EDID_MODES+=",${EXTRA_MODES}"
+        fi
+        return
+    fi
+
+    if [[ -n "${EDID_MODES:-}" ]]; then
+        return
+    fi
+
+    if have_install_tty; then
+        run_edid_setup_tui
+    else
+        if [[ -z "$EXTRA_MODES" ]]; then
+            EXTRA_MODES="$(default_extra_modes "$RES")"
+        fi
+    fi
+
+    EDID_MODES="$RES"
+    if [[ -n "$EXTRA_MODES" ]]; then
+        EDID_MODES+=",${EXTRA_MODES}"
+    fi
+
+    log "Primary EDID mode: ${RES}"
+    if [[ -n "$EXTRA_MODES" ]]; then
+        log "Additional EDID modes: ${EXTRA_MODES}"
+    else
+        log "Additional EDID modes: none"
+    fi
 }
 
 prepare_repo() {
@@ -429,7 +530,11 @@ configure_bootloader() {
 install_edid_and_scripts() {
     need_cmd python3
     log "Generating EDID"
-    python3 "${REPO_ROOT}/scripts/create-vdisplay-edid.py" /tmp/virtual-display.bin
+    local -a edid_args=(--primary "$RES")
+    if [[ -n "$EXTRA_MODES" ]]; then
+        edid_args+=(--extra "$EXTRA_MODES")
+    fi
+    python3 "${REPO_ROOT}/scripts/create-vdisplay-edid.py" "${edid_args[@]}" /tmp/virtual-display.bin
 
     log "Installing EDID firmware"
     as_root install -d /usr/lib/firmware/edid /lib/firmware/edid
@@ -448,6 +553,8 @@ install_edid_and_scripts() {
 VDISPLAY="${VDISPLAY}"
 PDISPLAY="${PDISPLAY}"
 RES="${RES}"
+EXTRA_MODES="${EXTRA_MODES}"
+EDID_MODES="${EDID_MODES:-$RES${EXTRA_MODES:+,$EXTRA_MODES}}"
 PDISPLAY_RES="${PDISPLAY_RES}"
 EOF
 }
@@ -542,7 +649,10 @@ main() {
     log "Initramfs backend: $(detect_initramfs_backend)"
     log "Virtual connector: ${VDISPLAY}"
     [[ -n "$PDISPLAY" ]] && log "Physical connector: ${PDISPLAY}"
+
+    configure_edid_modes
     log "Virtual mode: ${RES}"
+    [[ -n "$EXTRA_MODES" ]] && log "Extra EDID modes: ${EXTRA_MODES}"
 
     install_edid_and_scripts
     configure_initramfs

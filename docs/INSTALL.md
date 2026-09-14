@@ -51,7 +51,7 @@ cd sunshine-vdisplay
 
 1. Detect distro and initramfs backend
 2. Auto-detect connectors (prefers unused **HDMI**, then **DP**)
-3. Generate and install EDID firmware to `/usr/lib/firmware/edid/`
+3. Generate and install EDID firmware to `/usr/lib/firmware/edid/` (interactive mode selection, or set `RES` / `EXTRA_MODES`)
 4. Install scripts to `~/bin` and Sunshine config to `~/.config/sunshine/` (backs up an existing `sunshine.conf` before replacing it)
 5. Patch initramfs config and your bootloader cmdline
 6. Rebuild initramfs and apply Sunshine capabilities
@@ -83,7 +83,9 @@ Local overrides for connector names and modes are saved to `~/bin/vdisplay-commo
 |----------|---------|-------------|
 | `VDISPLAY` | first free HDMI, else DP | Virtual connector name |
 | `PDISPLAY` | first connected monitor | Physical connector name |
-| `RES` | `2560x1600@120` | Virtual display mode |
+| `RES` | `2560x1440@120` | Primary virtual display mode (EDID preferred timing) |
+| `EXTRA_MODES` | common presets | Comma-separated additional EDID modes (skips extra-mode menu when set) |
+| `SKIP_EDID_PROMPT` | `0` | Set to `1` to skip interactive EDID mode selection |
 | `PDISPLAY_RES` | `2560x1440@143.99` | Physical display mode |
 | `SUNSHINE_OUTPUT` | `0` | Sunshine KMS monitor index |
 | `SKIP_REBOOT` | `0` | Set to `1` to skip reboot prompt |
@@ -92,6 +94,31 @@ Local overrides for connector names and modes are saved to `~/bin/vdisplay-commo
 | `MERGE_SUNSHINE_CONF` | `0` | Set to `1` to merge only `global_prep_cmd` into an existing config (still creates a backup) |
 | `REPO_URL` | this repo | Override clone URL |
 | `INITRAMFS_BACKEND` | auto-detect | Force `mkinitcpio`, `dracut`, or `initramfs-tools` |
+
+During install you get a **Hermes-style TUI**: arrow keys for the primary mode, Space to toggle extra modes, Enter to confirm. Non-interactive example:
+
+```bash
+RES=2560x1440@120 EXTRA_MODES="1920x1080@60,3840x2160@60" ./scripts/install.sh
+```
+
+Interactive install shows two screens:
+
+```text
+Primary virtual display mode (EDID preferred timing)
+↑/↓ navigate · Enter/Space select · Esc keep default
+ → (●) 2560x1440@120  (16:9, default)
+   (○) 2560x1600@120  (16:10)
+   ...
+
+Additional EDID modes (up to 5; primary is 2560x1440@120)
+↑/↓ navigate · Space toggle · Enter confirm · Esc keep defaults
+ → [✓] 2560x1600@120  (16:10)
+   [✓] 1920x1080@120  (16:9)
+   ...
+Selected 4/5
+```
+
+Re-run the picker any time: `python3 scripts/edid-setup-tui.py`
 
 ## Uninstall
 

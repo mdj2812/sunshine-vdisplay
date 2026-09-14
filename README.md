@@ -8,7 +8,7 @@ Force-enable a spare GPU output with a custom EDID — no dummy plug required. I
 
 ## Features
 
-- Custom EDID with HDMI 2.1 VSDB blocks (2560×1600@120, 4K, and more)
+- Custom EDID with HDMI 2.1 VSDB blocks (2560×1440@120, 4K, and more)
 - One-line installer for Arch/CachyOS (Limine, GRUB, or systemd-boot)
 - Automatic virtual/physical display swap via Sunshine `global_prep_cmd`
 - Brightness tuning for virtual outputs (scale, brightness, dimming, Night Color)
