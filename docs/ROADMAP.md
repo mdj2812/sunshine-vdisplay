@@ -15,4 +15,7 @@ Related docs:
 - [AMD.md](AMD.md) — AMD testing paths and encoder notes
 - [ALTERNATIVES.md](ALTERNATIVES.md) — KDE `krfb-virtualmonitor` vs EDID tradeoffs
 
-Contributions and issues for future milestones are welcome — please tag the relevant milestone when opening an issue. For AMD hardware, use the [AMD testing issue template](https://github.com/mdj2812/sunshine-vdisplay/issues/new?template=amd-testing.md) (issues titled `[AMD] …` are auto-assigned to milestone 2).
+Contributions and issues for future milestones are welcome — please tag the relevant milestone when opening an issue.
+
+- AMD: [AMD testing issue template](https://github.com/mdj2812/sunshine-vdisplay/issues/new?template=amd-testing.md) — `[AMD] …` auto-assigns milestone 2; see [AMD.md](AMD.md)
+- Intel: [Intel testing issue template](https://github.com/mdj2812/sunshine-vdisplay/issues/new?template=intel-testing.md) — `[Intel] …` auto-assigns milestone 3; see [INTEL.md](INTEL.md)
