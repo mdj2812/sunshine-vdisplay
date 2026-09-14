@@ -68,11 +68,11 @@ pick_stream_resolution() {
     fi
 
     local requested="${width}x${height}@${fps}"
-    local mode candidate best="" best_score=-1
-    local req_w="$width" req_h="$height" req_fps="$fps"
+    local mode best="" best_score=-1
+    local req_w="$width" req_h="$height"
     local mode_w mode_h mode_fps aspect_req aspect_mode score
 
-    IFS=',' read -r -a _edid_modes <<< "$EDID_MODES"
+    IFS=',' read -r -a _edid_modes <<<"$EDID_MODES"
     for mode in "${_edid_modes[@]}"; do
         mode="${mode// /}"
         [[ -n "$mode" ]] || continue
