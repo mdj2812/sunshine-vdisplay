@@ -369,7 +369,7 @@ merge_grub() {
 
     if ! grep -qF "$snippet" "$conf"; then
         log "Updating ${conf}"
-        as_root sed -i "s/^GRUB_CMDLINE_LINUX_DEFAULT=\"\\(.*\\)\"/GRUB_CMDLINE_LINUX_DEFAULT=\"\\1 ${snippet}\"/" "$conf"
+        as_root sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=\"\\(.*\\)\"|GRUB_CMDLINE_LINUX_DEFAULT=\"\\1 ${snippet}\"|" "$conf"
     fi
 
     if command -v update-grub >/dev/null 2>&1; then
