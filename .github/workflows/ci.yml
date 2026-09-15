@@ -23,7 +23,7 @@ jobs:
 
       - name: ShellCheck
         run: |
-          shellcheck scripts/install.sh scripts/uninstall.sh scripts/install-local.sh scripts/vdisplay-common.sh
+          shellcheck scripts/install.sh scripts/uninstall.sh scripts/install-local.sh scripts/vdisplay-common.sh scripts/vdisplay-cmdline.sh
           (cd scripts && shellcheck -x vdisplay-on.sh vdisplay-off.sh)
 
       - name: shfmt
@@ -49,6 +49,15 @@ jobs:
         run: |
           python3 scripts/create-vdisplay-edid.py /tmp/virtual-display.bin
           test "$(wc -c < /tmp/virtual-display.bin)" -eq 256
+
+  cmdline:
+    name: Bootloader cmdline merge
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run command line tests
+        run: bash tests/cmdline-merge-test.sh
 
   smoke:
     name: Smoke · ${{ matrix.name }}
