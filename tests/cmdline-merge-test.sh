@@ -151,6 +151,32 @@ expect_remove \
     'KERNEL_CMDLINE[default]+=" quiet drm.edid_firmware=HDMI-A-2:edid/virtual-display.bin video=HDMI-A-2:e"' \
     'KERNEL_CMDLINE[default]+=" quiet"'
 
+# Both scripts must still run main() when read from stdin, which is how the
+# documented `curl ... | bash` one-liners feed them. Under `set -u` that mode
+# leaves BASH_SOURCE unset, so an entry-point guard has to allow it.
+expect_runs_from_stdin() {
+    local name="$1" script="$2" marker="$3"
+    local out rc=0
+
+    out="$(bash <"${repo_root}/${script}" 2>&1)" || rc=$?
+
+    if [[ "$rc" -ne 0 ]] && [[ "$out" == *"$marker"* ]]; then
+        pass "$name"
+    else
+        fail "${name}: expected '${marker}' (exit ${rc})"
+        printf '%s\n' "$out" | tail -n 3 >&2
+    fi
+}
+
+# Neither script may touch the system on the way there: both stop at the
+# non-interactive confirmation prompt.
+expect_runs_from_stdin \
+    "install-runs-when-read-from-stdin" scripts/install.sh \
+    "non-interactive install blocked"
+expect_runs_from_stdin \
+    "uninstall-runs-when-read-from-stdin" scripts/uninstall.sh \
+    "non-interactive uninstall blocked"
+
 if [[ "$failures" -eq 0 ]]; then
     printf '\nAll command line tests passed.\n'
 else

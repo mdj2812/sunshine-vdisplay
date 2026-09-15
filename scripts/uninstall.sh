@@ -418,6 +418,9 @@ EOF
     fi
 }
 
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+# Run the uninstaller when it is executed, including `curl ... | bash` — reading
+# the script from stdin leaves BASH_SOURCE unset. Skip main when a test sources
+# this file to reach remove_kernel_params_from_file.
+if [[ -z "${BASH_SOURCE[0]:-}" || "${BASH_SOURCE[0]}" == "${0}" ]]; then
     main "$@"
 fi
