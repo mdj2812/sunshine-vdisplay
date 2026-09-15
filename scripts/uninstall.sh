@@ -119,11 +119,25 @@ detect_initramfs_backend() {
 
 remove_kernel_params_from_file() {
     local file="$1"
+    local connector
+
     [[ -f "$file" ]] || return 0
     if grep -q 'virtual-display.bin' "$file"; then
         log "Removing virtual-display kernel params from ${file}"
+        # The video= flag sits next to the EDID mapping, so collect the
+        # connectors that reference our blob before removing the mapping.
+        while read -r connector; do
+            [[ -n "$connector" ]] || continue
+            as_root sed -i -E "s| video=${connector}:e||" "$file"
+        done < <(grep -oE '[^ ",=]+:edid/virtual-display\.bin' "$file" | cut -d: -f1 | sort -u)
+
+        # Our mapping may be first, last, or the only entry in a
+        # comma-separated drm.edid_firmware list next to other connectors.
         as_root sed -i -E \
-            's| drm\.edid_firmware=[^ "]+:edid/virtual-display\.bin video=[^ "]+:e||g' \
+            -e 's|drm\.edid_firmware=[^ ",]+:edid/virtual-display\.bin,|drm.edid_firmware=|' \
+            -e 's|,[^ ",]+:edid/virtual-display\.bin||' \
+            -e 's| drm\.edid_firmware=[^ ",]+:edid/virtual-display\.bin||' \
+            -e 's|"drm\.edid_firmware=[^ ",]+:edid/virtual-display\.bin|"|' \
             "$file"
     fi
 }
@@ -166,10 +180,7 @@ remove_systemd_boot() {
     for entry in /boot/loader/entries/*.conf; do
         [[ -f "$entry" ]] || continue
         if grep -q 'virtual-display.bin' "$entry"; then
-            log "Removing virtual-display kernel params from ${entry}"
-            as_root sed -i -E \
-                's| drm\.edid_firmware=[^ ]+:edid/virtual-display\.bin video=[^ ]+:e||g' \
-                "$entry"
+            remove_kernel_params_from_file "$entry"
             updated=1
         fi
     done
@@ -407,4 +418,6 @@ EOF
     fi
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

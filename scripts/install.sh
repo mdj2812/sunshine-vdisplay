@@ -436,22 +436,42 @@ kernel_param_snippet() {
     printf 'drm.edid_firmware=%s:edid/virtual-display.bin video=%s:e' "$VDISPLAY" "$VDISPLAY"
 }
 
+load_cmdline_helper() {
+    local helper="${REPO_ROOT}/scripts/vdisplay-cmdline.sh"
+
+    [[ -f "$helper" ]] || die "missing ${helper}"
+    # shellcheck source=scripts/vdisplay-cmdline.sh
+    source "$helper"
+}
+
+# Rewrite <file> so the virtual display EDID mapping is merged into an existing
+# drm.edid_firmware value instead of replacing it, and so the parameters land on
+# a single command line entry only.
+apply_cmdline_file() {
+    local style="$1" file="$2"
+    local updated
+
+    updated="$(mktemp)"
+    if ! cmdline_merge_params "$style" "$file" "$VDISPLAY" >"$updated"; then
+        rm -f "$updated"
+        warn "could not update ${file}; add manually: $(kernel_param_snippet)"
+        return 1
+    fi
+
+    if cmp -s "$updated" "$file"; then
+        log "Kernel params already present in ${file}"
+    else
+        log "Updating ${file}"
+        as_root tee "$file" <"$updated" >/dev/null
+    fi
+    rm -f "$updated"
+}
+
 merge_limine() {
     local conf="/etc/default/limine"
-    local snippet
 
     [[ -f "$conf" ]] || return 1
-    snippet="$(kernel_param_snippet)"
-
-    if grep -q 'virtual-display.bin' "$conf"; then
-        log "Replacing existing virtual-display kernel params in ${conf}"
-        as_root sed -i -E 's| drm\.edid_firmware=[^ "]+:edid/virtual-display\.bin video=[^ "]+:e||g' "$conf"
-    fi
-
-    if ! grep -qF "$snippet" "$conf"; then
-        log "Updating ${conf}"
-        as_root sed -i "s|^KERNEL_CMDLINE\[default\]+=\"\(.*\)\"|KERNEL_CMDLINE[default]+=\"\1 ${snippet}\"|" "$conf"
-    fi
+    apply_cmdline_file limine "$conf" || true
 
     need_cmd limine-update
     as_root limine-update
@@ -459,19 +479,9 @@ merge_limine() {
 
 merge_grub() {
     local conf="/etc/default/grub"
-    local snippet
 
     [[ -f "$conf" ]] || return 1
-    snippet="$(kernel_param_snippet)"
-
-    if grep -q 'virtual-display.bin' "$conf"; then
-        as_root sed -i -E 's| drm\.edid_firmware=[^ "]+:edid/virtual-display\.bin video=[^ "]+:e||g' "$conf"
-    fi
-
-    if ! grep -qF "$snippet" "$conf"; then
-        log "Updating ${conf}"
-        as_root sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=\"\\(.*\\)\"|GRUB_CMDLINE_LINUX_DEFAULT=\"\\1 ${snippet}\"|" "$conf"
-    fi
+    apply_cmdline_file grub "$conf" || true
 
     if command -v update-grub >/dev/null 2>&1; then
         as_root update-grub
@@ -491,17 +501,13 @@ merge_grub() {
 }
 
 merge_systemd_boot() {
-    local entry snippet updated=0
+    local entry updated=0
 
-    snippet="$(kernel_param_snippet)"
     shopt -s nullglob
     for entry in /boot/loader/entries/*.conf; do
         [[ -f "$entry" ]] || continue
-        if grep -q '^options ' "$entry"; then
-            if grep -q 'virtual-display.bin' "$entry"; then
-                as_root sed -i -E 's| drm\.edid_firmware=[^ ]+:edid/virtual-display\.bin video=[^ ]+:e||g' "$entry"
-            fi
-            as_root sed -i "s|^options \\(.*\\)|options \\1 ${snippet}|" "$entry"
+        grep -q '^options ' "$entry" || continue
+        if apply_cmdline_file systemd-boot "$entry"; then
             updated=1
         fi
     done
@@ -515,6 +521,8 @@ configure_bootloader() {
         warn "SKIP_BOOTLOADER=1 — skipped bootloader configuration"
         return
     fi
+
+    load_cmdline_helper
 
     if [[ -f /etc/default/limine ]]; then
         merge_limine
@@ -690,4 +698,6 @@ EOF
     fi
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi
