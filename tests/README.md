@@ -8,7 +8,25 @@ Every push runs:
 |-----|--------|
 | Shell lint and format | ShellCheck, shfmt, `bash -n` |
 | EDID generator | 256-byte output |
+| Bootloader cmdline merge | `tests/cmdline-merge-test.sh` |
 | Install smoke test | `tests/smoke-test.sh` in a distro matrix (see below) |
+
+## Bootloader cmdline tests
+
+`tests/cmdline-merge-test.sh` covers the kernel command line handling without
+root, a GPU, or a reboot. It runs the merge used by `install.sh` and the cleanup
+used by `uninstall.sh` against fixture bootloader configs:
+
+- `drm.edid_firmware` mappings for other connectors (dummy plugs, eDP panels) are
+  merged into one comma-separated value instead of being replaced
+- parameters are written to a single command line entry, so Limine hosts with
+  several `KERNEL_CMDLINE[default]+=` lines do not get them twice
+- re-running the installer leaves the config unchanged
+- uninstall restores the previous command line in both parameter shapes
+
+```bash
+./tests/cmdline-merge-test.sh
+```
 
 ### Smoke matrix (CI)
 
