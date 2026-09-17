@@ -22,7 +22,7 @@ KWin can create a virtual output that Sunshine captures through the desktop port
 | No initramfs or kernel parameters | **KDE only** |
 | No spare connector required | Virtual output must exist **before** Sunshine starts |
 | Arbitrary resolution per client | Portal token is tied to the output UUID |
-| Similar latency to EDID + KMS (~4.5 ms @ 4K60 reported) | Different automation than `global_prep_cmd` + `kscreen-doctor` |
+| Same latency as EDID + KMS within noise (4.3–5 ms vs 4.2–4.4 ms @ 4K60, see [AMD.md](AMD.md#field-reports)) | Different automation than `global_prep_cmd` + `kscreen-doctor` |
 
 Typical flow:
 
@@ -50,6 +50,6 @@ See [AMD.md](AMD.md). Intended for **headless-only** AMD hosts, not daily deskto
 | AMD desktop, keep physical monitor | **EDID + force-enable** (milestone 2) or **krfb** |
 | KDE only, avoid boot changes | **krfb + portal** |
 | Dedicated headless AMD box | **vkms** or EDID |
-| Need HDR on Linux | **EDID** (verify end-to-end; vkms has no EDID HDR path) |
+| Need HDR on Linux | **EDID** — it already advertises HDR10 static metadata (PQ) and BT.2020 RGB, but end-to-end HDR is unverified ([milestone 6](https://github.com/mdj2812/sunshine-vdisplay/milestone/6)); vkms and portal capture cannot advertise HDR at all |
 
 Contributions documenting krfb automation in a separate script or optional install profile are welcome — please tag the relevant [milestone](https://github.com/mdj2812/sunshine-vdisplay/milestones).

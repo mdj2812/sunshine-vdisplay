@@ -53,7 +53,7 @@ cd sunshine-vdisplay
 2. Auto-detect connectors (prefers unused **HDMI**, then **DP**)
 3. Generate and install EDID firmware to `/usr/lib/firmware/edid/` (interactive mode selection, or set `RES` / `EXTRA_MODES`)
 4. Install scripts to `~/bin` and Sunshine config to `~/.config/sunshine/` (backs up an existing `sunshine.conf` before replacing it)
-5. Patch initramfs config and your bootloader cmdline
+5. Patch initramfs config and your bootloader cmdline — an existing `drm.edid_firmware` mapping for another connector (a dummy plug, a panel) is merged into one comma-separated value instead of being replaced
 6. Rebuild initramfs and apply Sunshine capabilities
 7. Disable screen blanking that breaks headless virtual outputs
 8. Configure Sunshine `global_prep_cmd` to swap displays when a Moonlight session starts and ends
