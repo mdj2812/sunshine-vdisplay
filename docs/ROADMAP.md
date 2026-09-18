@@ -15,6 +15,7 @@ Related docs:
 
 - [AMD.md](AMD.md) — AMD testing paths and encoder notes
 - [ALTERNATIVES.md](ALTERNATIVES.md) — KDE `krfb-virtualmonitor` vs EDID tradeoffs
+- [HDR.md](HDR.md) — what the generated EDID advertises, and what is left to verify
 
 Contributions and issues for future milestones are welcome — please tag the relevant milestone when opening an issue.
 

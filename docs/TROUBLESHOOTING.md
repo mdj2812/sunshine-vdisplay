@@ -66,7 +66,7 @@ This is a testing shortcut for the [AMD path](AMD.md) and other hardware reports
 
 ## Limitations
 
-- **HDR** does not work on NVIDIA force-enabled virtual connectors, even though the generated EDID already advertises HDR10 static metadata (PQ) and BT.2020 RGB colorimetry — the gap is in the driver and compositor. Tracked in [milestone 6](https://github.com/mdj2812/sunshine-vdisplay/milestone/6)
+- **HDR** on force-enabled virtual connectors is unverified end to end. The generated EDID advertises HDR10 static metadata (PQ) and BT.2020 colorimetry, and KWin accepts `output.<connector>.hdr.enable` — but an active virtual output has not been confirmed to drive HDR. See [HDR.md](HDR.md) and [milestone 6](https://github.com/mdj2812/sunshine-vdisplay/milestone/6)
 - **4K above 60 Hz** cannot be encoded in a standard EDID detailed timing (pixel clock cap ~655 MHz), so **3840x2160@60** is the practical maximum here. A 4K120 mode would need a YCbCr 4:2:0 timing — RGB at 4K120 wants roughly 1188 MHz TMDS against the 600 MHz budget the generated HDMI VSDB declares — and the generator emits neither a 4:2:0 VIC nor the matching capability flags
 - **Dummy plugs** often ship an EDID capped at 1080p60, and it cannot be changed — inject a custom EDID (this repo) or use a dummy known to carry a larger one
 - **144 Hz** works on Linux when the mode is listed in EDID and `kscreen-doctor output.<connector>.mode.*` shows it — common for 1080p/1440p/1600p on force-enabled connectors; Moonlight must request 144 (`SUNSHINE_CLIENT_FPS`). Only **6 modes** fit in one EDID blob, so pick 144 Hz variants deliberately in the installer
