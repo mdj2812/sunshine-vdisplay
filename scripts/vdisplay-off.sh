@@ -14,6 +14,9 @@ else
 fi
 
 if kscreen_has_output "$VDISPLAY"; then
+    if [[ "$VDISPLAY_HDR" == "1" ]] && output_hdr_enabled "$VDISPLAY"; then
+        set_output_hdr "$VDISPLAY" disable || true
+    fi
     disable_output "$VDISPLAY"
 elif connector_present "$VDISPLAY"; then
     echo "$VDISPLAY is connected in DRM but not managed by KDE."

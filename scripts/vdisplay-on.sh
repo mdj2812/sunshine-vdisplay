@@ -27,6 +27,9 @@ fi
 echo "Switching to virtual display at ${RES}..."
 disable_night_color
 enable_output "$VDISPLAY" "$RES" 0 0 1
+if [[ "$VDISPLAY_HDR" == "1" ]]; then
+    set_output_hdr "$VDISPLAY" enable || true
+fi
 tune_virtual_display "$VDISPLAY"
 disable_output "$PDISPLAY"
 show_outputs

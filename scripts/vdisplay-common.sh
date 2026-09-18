@@ -10,6 +10,7 @@ VDISPLAY_SCALE="${VDISPLAY_SCALE:-1.5}"
 VDISPLAY_BRIGHTNESS="${VDISPLAY_BRIGHTNESS:-100}"
 VDISPLAY_DIMMING="${VDISPLAY_DIMMING:-100}"
 VDISPLAY_SDR_BRIGHTNESS="${VDISPLAY_SDR_BRIGHTNESS:-400}"
+VDISPLAY_HDR="${VDISPLAY_HDR:-0}"
 STATE_DIR="${STATE_DIR:-$HOME/.cache/vdisplay}"
 
 export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}"
@@ -136,6 +137,40 @@ enable_output() {
     echo "Enabled $connector at ${res} (${x},${y})"
 }
 
+# Is HDR currently on for <connector> according to KWin?
+output_hdr_enabled() {
+    local connector="${1:-$VDISPLAY}"
+
+    kscreen -o 2>/dev/null | awk -v name="$connector" '
+        $0 ~ "^Output:.* " name " " { found=1; next }
+        found && /HDR:.*enabled/ { hdr=1; exit }
+        found && /^Output:/ { exit }
+        END { exit(hdr ? 0 : 1) }
+    '
+}
+
+# Turn HDR and wide color gamut on or off for <connector>.
+#
+# KWin accepts the toggle for force-enabled virtual outputs and reports the HDR
+# color profile as coming from the injected EDID. Whether an active virtual
+# output really drives HDR is still unverified — see docs/HDR.md.
+set_output_hdr() {
+    local connector="$1"
+    local mode="$2"
+
+    if ! kscreen "output.${connector}.hdr.${mode}" 2>/dev/null; then
+        echo "warning: KWin did not accept HDR ${mode} on $connector; continuing in SDR" >&2
+        return 1
+    fi
+
+    # Wide color gamut is paired with HDR on the physical output, but not every
+    # connector exposes it — a refusal here should not fail the stream.
+    kscreen "output.${connector}.wcg.${mode}" 2>/dev/null \
+        || echo "warning: could not switch wide color gamut ${mode} on $connector" >&2
+
+    echo "HDR ${mode}d on $connector"
+}
+
 tune_virtual_display() {
     local connector="$1"
     local -a args=(
@@ -144,11 +179,7 @@ tune_virtual_display() {
         "output.${connector}.dimming.${VDISPLAY_DIMMING}"
     )
 
-    if kscreen -o 2>/dev/null | awk -v name="$connector" '
-        $0 ~ "^Output:.* " name " " { found=1; next }
-        found && /HDR:.*enabled/ { exit 0 }
-        found && /^Output:/ { exit 1 }
-    '; then
+    if output_hdr_enabled "$connector"; then
         args+=("output.${connector}.sdr-brightness.${VDISPLAY_SDR_BRIGHTNESS}")
     fi
 
