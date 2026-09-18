@@ -9,7 +9,22 @@ Every push runs:
 | Shell lint and format | ShellCheck, shfmt, `bash -n` |
 | EDID generator | 256-byte output |
 | Bootloader cmdline merge | `tests/cmdline-merge-test.sh` |
+| Display helpers | `tests/hdr-helpers-test.sh` |
 | Install smoke test | `tests/smoke-test.sh` in a distro matrix (see below) |
+
+## Display helper tests
+
+`tests/hdr-helpers-test.sh` covers the KDE helpers behind `VDISPLAY_HDR` against a
+fake `kscreen-doctor`, so no session, GPU, or root is needed:
+
+- HDR state is read from the right output
+- enabling and disabling HDR also toggles wide color gamut
+- a rejected toggle warns and returns instead of taking the session script down
+- the brightness tuning applies `sdr-brightness` while HDR is on
+
+```bash
+./tests/hdr-helpers-test.sh
+```
 
 ## Bootloader cmdline tests
 

@@ -25,6 +25,7 @@ jobs:
         run: |
           shellcheck scripts/install.sh scripts/uninstall.sh scripts/install-local.sh scripts/vdisplay-common.sh scripts/vdisplay-cmdline.sh
           (cd scripts && shellcheck -x vdisplay-on.sh vdisplay-off.sh)
+          shellcheck -x tests/*.sh
 
       - name: shfmt
         run: shfmt -d -i 4 -ci -bn scripts/*.sh tests/*.sh
@@ -58,6 +59,15 @@ jobs:
 
       - name: Run command line tests
         run: bash tests/cmdline-merge-test.sh
+
+  helpers:
+    name: Display helpers
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run display helper tests
+        run: bash tests/hdr-helpers-test.sh
 
   smoke:
     name: Smoke · ${{ matrix.name }}
