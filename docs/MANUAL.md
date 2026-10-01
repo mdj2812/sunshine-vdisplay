@@ -34,6 +34,10 @@ drm.edid_firmware=<CONNECTOR>:edid/virtual-display.bin video=<CONNECTOR>:e
 | GRUB | `GRUB_CMDLINE_LINUX_DEFAULT` → `sudo grub-mkconfig -o /boot/grub/grub.cfg` |
 | systemd-boot | `options` line in `/boot/loader/entries/*.conf` |
 
+Always write the mapping as `<connector>:<file>`. The kernel parameter is documented as *"do not probe monitor, use the specified EDID blob instead"* — it replaces probing rather than falling back, and an entry without a connector prefix is a **global fallback** that can hand your physical monitor the virtual EDID.
+
+Two entries for different connectors belong in one comma-separated value: `drm.edid_firmware=HDMI-A-1:edid/panel.bin,HDMI-A-2:edid/virtual-display.bin`. A second `drm.edid_firmware=` parameter replaces the first, which is why the installer merges into an existing value instead of appending.
+
 See also `system/limine.cmdline.snippet` in the repo for an example.
 
 ## 4. Initramfs
