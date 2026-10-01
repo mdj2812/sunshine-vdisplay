@@ -27,6 +27,17 @@ kscreen() {
     kscreen-doctor "$@"
 }
 
+# The switching helpers drive kscreen-doctor, which exists only on KDE Plasma
+# Wayland. Other desktops need their own swap step — GNOME uses gdctl, see
+# docs/GNOME.md.
+require_kscreen() {
+    command -v kscreen-doctor >/dev/null 2>&1 && return 0
+
+    echo "kscreen-doctor not found: display switching needs KDE Plasma Wayland." >&2
+    echo "On GNOME, drive the swap with gdctl instead — see docs/GNOME.md." >&2
+    return 1
+}
+
 connector_status() {
     local connector="$1"
     local path

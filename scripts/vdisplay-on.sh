@@ -6,6 +6,8 @@ set -euo pipefail
 # shellcheck source=vdisplay-common.sh
 source "$(dirname "$0")/vdisplay-common.sh"
 
+require_kscreen || exit 1
+
 RES="$(pick_stream_resolution)"
 if [[ -n "${1:-}" ]]; then
     RES="$1"

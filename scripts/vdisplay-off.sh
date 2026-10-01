@@ -6,6 +6,8 @@ set -euo pipefail
 # shellcheck source=vdisplay-common.sh
 source "$(dirname "$0")/vdisplay-common.sh"
 
+require_kscreen || exit 1
+
 if kscreen_has_output "$PDISPLAY"; then
     echo "Restoring physical display..."
     enable_output "$PDISPLAY" "$PDISPLAY_RES" 0 0 1
