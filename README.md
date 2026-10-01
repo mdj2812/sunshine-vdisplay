@@ -80,7 +80,7 @@ Sunshine captures the virtual output via **KMS** (`capture = kms`, `encoder = nv
 | [docs/AMD.md](docs/AMD.md) | AMD GPU paths, encoders, and testing notes |
 | [docs/HDR.md](docs/HDR.md) | HDR: what the EDID advertises, how to enable it, what is unverified |
 | [docs/INTEL.md](docs/INTEL.md) | Intel iGPU paths, encoders, field reports, and the PVE lab |
-| [docs/DESKTOPS.md](docs/DESKTOPS.md) | Desktop support matrix and what a backend has to provide |
+| [docs/DESKTOPS.md](docs/DESKTOPS.md) | Desktop support matrix and what a desktop backend has to provide |
 | [docs/ALTERNATIVES.md](docs/ALTERNATIVES.md) | KDE krfb vs EDID and other approaches |
 
 ## Repository layout

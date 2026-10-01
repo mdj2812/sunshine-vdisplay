@@ -15,7 +15,7 @@ GNOME has no `kscreen-doctor` equivalent, but `gdctl` covers the same ground. Th
 
 ## HDR
 
-GNOME exposes HDR per monitor through mutter rather than a CLI toggle. The generated EDID advertises HDR10 (PQ) and BT.2020 colorimetry ([HDR.md](HDR.md)), but nobody has reported whether GNOME offers HDR for a force-enabled virtual output yet.
+GNOME exposes HDR per monitor through mutter rather than a CLI toggle. The generated EDID advertises HDR10 (PQ) and BT.2020 colorimetry, but nobody has reported whether GNOME offers HDR for a force-enabled virtual output yet — HDR is tracked in [milestone 6](https://github.com/mdj2812/sunshine-vdisplay/milestone/6).
 
 ## References
 

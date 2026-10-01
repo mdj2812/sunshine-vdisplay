@@ -15,6 +15,7 @@ Related docs:
 
 - [AMD.md](AMD.md) — AMD testing paths and encoder notes
 - [GNOME.md](GNOME.md) — GNOME support status and `gdctl` switching notes
+- [DESKTOPS.md](DESKTOPS.md) — desktop support matrix and the backend contract
 - [ALTERNATIVES.md](ALTERNATIVES.md) — KDE `krfb-virtualmonitor` vs EDID tradeoffs
 - [HDR.md](HDR.md) — what the generated EDID advertises, and what is left to verify
 

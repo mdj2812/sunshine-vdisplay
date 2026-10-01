@@ -402,7 +402,7 @@ warn_desktop_support() {
     [[ "$desktop" == *KDE* ]] && return 0
 
     warn "desktop '${desktop}' is not KDE Plasma: vdisplay-on.sh/vdisplay-off.sh use kscreen-doctor and will not switch displays here"
-    warn "  EDID, initramfs, and Sunshine setup still apply — wire the swap into global_prep_cmd yourself (GNOME: gdctl; see docs/GNOME.md)"
+    warn "  EDID, initramfs, and Sunshine setup still apply — wire the swap into global_prep_cmd yourself (see docs/DESKTOPS.md)"
 }
 
 configure_initramfs() {
