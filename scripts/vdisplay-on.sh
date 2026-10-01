@@ -6,7 +6,7 @@ set -euo pipefail
 # shellcheck source=vdisplay-common.sh
 source "$(dirname "$0")/vdisplay-common.sh"
 
-require_kscreen || exit 1
+de_require_tools || exit 1
 
 RES="$(pick_stream_resolution)"
 if [[ -n "${1:-}" ]]; then
@@ -20,18 +20,13 @@ if ! connector_present "$VDISPLAY"; then
     exit 1
 fi
 
-if ! kscreen_has_output "$VDISPLAY"; then
-    echo "Virtual display $VDISPLAY is connected in DRM but not visible to KDE yet."
+if ! de_has_output "$VDISPLAY"; then
+    echo "Virtual display $VDISPLAY is connected in DRM but not visible to the desktop yet."
     echo "Try logging out/in, or reboot if you just changed kernel parameters."
     exit 1
 fi
 
 echo "Switching to virtual display at ${RES}..."
-disable_night_color
-enable_output "$VDISPLAY" "$RES" 0 0 1
-if [[ "$VDISPLAY_HDR" == "1" ]]; then
-    set_output_hdr "$VDISPLAY" enable || true
-fi
-tune_virtual_display "$VDISPLAY"
-disable_output "$PDISPLAY"
-show_outputs
+de_disable_night_color
+de_switch_to_virtual "$RES"
+de_show_outputs
