@@ -37,6 +37,8 @@ Community guides:
 
 - [KDE Wayland virtual display with krfb-virtualmonitor](https://www.reddit.com/r/MoonlightStreaming/comments/1tg1dnc/guide_sunshine_on_kde_wayland_virtual_display/) (r/MoonlightStreaming)
 
+On GNOME the same capture path works, but the display switching step needs `gdctl` instead of `kscreen-doctor` — see [GNOME.md](GNOME.md).
+
 This does **not** replace other milestones (Sway, GNOME, X11, Intel, etc.) — those still need compositor-specific tooling.
 
 ## `amdgpu.virtual_display` / vkms

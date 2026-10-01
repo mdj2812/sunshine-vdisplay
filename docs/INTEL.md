@@ -60,16 +60,7 @@ From [issue #4](https://github.com/mdj2812/sunshine-vdisplay/issues/4): Ubuntu 2
 - Measured host cost at 2560x1440@60 HEVC: Sunshine ~7 % of one core, gnome-shell ~4 %, machine-wide CPU ~2 %, ~5 Mbps on the wire against a 44.6 Mbps ceiling. Encoding runs on the media engine, so CPU cost stays low.
 - HDR was not tested on this machine.
 
-The switching step was driven by `gdctl` rather than `kscreen-doctor` — see [GNOME](#gnome-gdctl).
-
-### GNOME (`gdctl`)
-
-The repo's switching scripts are KDE-only. On GNOME, `gdctl` covers the same ground: **any monitor omitted from a `gdctl set` command line is turned off**, so declaring a logical monitor for the virtual connector alone blanks the physical one. Two details worth knowing, both from the report above:
-
-- `-P` (persist) is an option of the `set` subcommand: `gdctl set -P …`, not `gdctl -P set …`.
-- Adding the virtual monitor changes the set of connected monitors, so mutter discards its stored layout and auto-configures: the desktop extends onto the virtual screen and the physical panel drops to its preferred timing (3440x1440@50 instead of its usual 144 Hz on that machine). Persisting a configuration for the new monitor set and normalising it once at login resolved it.
-
-A GNOME switching script would be welcome — see the [other desktop environments milestone](https://github.com/mdj2812/sunshine-vdisplay/milestone/5) and [ALTERNATIVES.md](ALTERNATIVES.md).
+The switching step was driven by `gdctl` rather than `kscreen-doctor`. The GNOME-specific notes live in [GNOME.md](GNOME.md) — a GNOME backend for the switching scripts is still wanted (milestone 5).
 
 ## What we need from testers
 
