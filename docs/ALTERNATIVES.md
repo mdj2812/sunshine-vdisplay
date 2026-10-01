@@ -23,6 +23,7 @@ KWin can create a virtual output that Sunshine captures through the desktop port
 | No spare connector required | Virtual output must exist **before** Sunshine starts |
 | Arbitrary resolution per client | Portal token is tied to the output UUID |
 | Same latency as EDID + KMS within noise (4.3–5 ms vs 4.2–4.4 ms @ 4K60, see [AMD.md](AMD.md#field-reports)) | Different automation than `global_prep_cmd` + `kscreen-doctor` |
+| Works on GNOME and other portal desktops | Changing the monitor set invalidates the stored ScreenCast restore token — RustDesk on Wayland hits this, and the replacement consent dialog can appear on the virtual screen where the remote user cannot see it |
 
 Typical flow:
 
