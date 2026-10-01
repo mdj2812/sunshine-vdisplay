@@ -48,27 +48,28 @@ fail() {
 
 pass() { printf 'ok: %s\n' "$*"; }
 
-cat >"$outputs_file" <<'EOF'
-Output: 1 DP-3 61861c4f
-	enabled
-	connected
-	HDR: enabled
-		SDR brightness: 400 nits
-	Wide Color Gamut: enabled
-Output: 2 HDMI-A-1 7a4c3c7e
-	disabled
-	connected
-	HDR: disabled
-	Wide Color Gamut: disabled
-EOF
+# kscreen-doctor colours its output, so the fixtures carry escape codes too.
+# kscreen-doctor colours its output, so the fixture carries escape codes too.
+{
+    printf '\033[01;32mOutput: \033[0;0m1 DP-3 61861c4f\n'
+    printf '\t\033[01;32menabled\033[0;0m\n'
+    printf '\t\033[01;32mconnected\033[0;0m\n'
+    printf '\t\033[01;33mHDR: \033[0;0menabled\n'
+    printf '\t\033[01;33mWide Color Gamut: \033[0;0menabled\n'
+    printf '\033[01;32mOutput: \033[0;0m2 HDMI-A-1 7a4c3c7e\n'
+    printf '\t\033[01;31mdisabled\033[0;0m\n'
+    printf '\t\033[01;32mconnected\033[0;0m\n'
+    printf '\t\033[01;33mHDR: \033[0;0mdisabled\n'
+    printf '\t\033[01;33mWide Color Gamut: \033[0;0mdisabled\n'
+} >"$outputs_file"
 
-if output_hdr_enabled DP-3; then
+if kde_hdr_enabled DP-3; then
     pass "detects HDR enabled on DP-3"
 else
     fail "should detect HDR enabled on DP-3"
 fi
 
-if output_hdr_enabled HDMI-A-1; then
+if kde_hdr_enabled HDMI-A-1; then
     fail "should not report HDR for a disabled HDMI-A-1"
 else
     pass "reports HDR off for HDMI-A-1"
@@ -76,7 +77,7 @@ fi
 
 # HDR state changes reach KWin through both properties.
 : >"$calls"
-if set_output_hdr HDMI-A-1 enable >/dev/null \
+if kde_set_hdr HDMI-A-1 enable >/dev/null \
     && grep -qxF "output.HDMI-A-1.hdr.enable" "$calls" \
     && grep -qxF "output.HDMI-A-1.wcg.enable" "$calls"; then
     pass "enables HDR and WCG on the virtual output"
@@ -86,7 +87,7 @@ else
 fi
 
 : >"$calls"
-if set_output_hdr HDMI-A-1 disable >/dev/null \
+if kde_set_hdr HDMI-A-1 disable >/dev/null \
     && grep -qxF "output.HDMI-A-1.hdr.disable" "$calls" \
     && grep -qxF "output.HDMI-A-1.wcg.disable" "$calls"; then
     pass "disables HDR and WCG again"
@@ -98,7 +99,7 @@ fi
 # A rejected toggle must not take the session script down with it.
 echo 1 >"$status_file"
 rc=0
-err="$(set_output_hdr HDMI-A-1 enable 2>&1 >/dev/null)" || rc=$?
+err="$(kde_set_hdr HDMI-A-1 enable 2>&1 >/dev/null)" || rc=$?
 if [[ "$rc" -eq 1 ]] && [[ "$err" == *"did not accept HDR enable"* ]]; then
     pass "reports a rejected HDR toggle without failing hard"
 else
@@ -107,13 +108,13 @@ fi
 echo 0 >"$status_file"
 
 # With HDR on, the tuning step also sets the SDR brightness level.
-cat >"$outputs_file" <<'EOF'
-Output: 2 HDMI-A-1 7a4c3c7e
-	enabled
-	HDR: enabled
-EOF
+{
+    printf '\033[01;32mOutput: \033[0;0m2 HDMI-A-1 7a4c3c7e\n'
+    printf '\t\033[01;32menabled\033[0;0m\n'
+    printf '\t\033[01;33mHDR: \033[0;0menabled\n'
+} >"$outputs_file"
 : >"$calls"
-tune_virtual_display HDMI-A-1 >/dev/null
+kde_tune_output HDMI-A-1 >/dev/null
 if grep -qF "sdr-brightness.400" "$calls"; then
     pass "applies SDR brightness while HDR is on"
 else

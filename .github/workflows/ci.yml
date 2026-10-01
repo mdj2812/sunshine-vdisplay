@@ -69,6 +69,19 @@ jobs:
       - name: Run display helper tests
         run: bash tests/hdr-helpers-test.sh
 
+  desktops:
+    name: Desktop smoke · ${{ matrix.desktop }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        desktop: [kde, gnome]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run desktop backend tests
+        run: bash tests/desktop-backends-test.sh ${{ matrix.desktop }}
+
   smoke:
     name: Smoke · ${{ matrix.name }}
     runs-on: ubuntu-latest
