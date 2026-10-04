@@ -23,16 +23,16 @@ jobs:
 
       - name: ShellCheck
         run: |
-          shellcheck scripts/install.sh scripts/uninstall.sh scripts/install-local.sh scripts/vdisplay-common.sh scripts/vdisplay-cmdline.sh
+          shellcheck scripts/install.sh scripts/uninstall.sh scripts/install-local.sh scripts/vdisplay-common.sh scripts/vdisplay-cmdline.sh scripts/backends/*.sh
           (cd scripts && shellcheck -x vdisplay-on.sh vdisplay-off.sh)
           shellcheck -x tests/*.sh
 
       - name: shfmt
-        run: shfmt -d -i 4 -ci -bn scripts/*.sh tests/*.sh
+        run: shfmt -d -i 4 -ci -bn scripts/*.sh scripts/backends/*.sh tests/*.sh
 
       - name: bash -n
         run: |
-          for script in scripts/*.sh tests/*.sh; do
+          for script in scripts/*.sh scripts/backends/*.sh tests/*.sh; do
             bash -n "$script"
           done
 
