@@ -306,6 +306,11 @@ remove_user_scripts() {
             rm -f "$path"
         fi
     done
+
+    if [[ -d "${HOME}/bin/backends" ]]; then
+        log "Removing ${HOME}/bin/backends"
+        rm -rf "${HOME}/bin/backends"
+    fi
 }
 
 cleanup_sunshine_config() {

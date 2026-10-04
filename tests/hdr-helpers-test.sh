@@ -38,6 +38,10 @@ export PATH="${work}/bin:${PATH}"
 
 # shellcheck source=scripts/vdisplay-common.sh
 source "${repo_root}/scripts/vdisplay-common.sh"
+# These tests exercise the KDE backend directly, so load it instead of going
+# through the desktop dispatch.
+# shellcheck source=scripts/backends/kde.sh
+source "${repo_root}/scripts/backends/kde.sh"
 
 failures=0
 
