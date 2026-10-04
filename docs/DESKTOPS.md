@@ -4,7 +4,7 @@ The EDID, initramfs, and Sunshine parts of this repo are desktop-agnostic — th
 
 | Desktop | Session | Switching tool | Status | Notes |
 |---------|---------|----------------|--------|-------|
-| **KDE Plasma** | Wayland | `kscreen-doctor` | **Supported** | What the installer sets up — [INSTALL.md](INSTALL.md), [USAGE.md](USAGE.md) |
+| **KDE Plasma** | Wayland tested, X11 untested | `kscreen-doctor` | **Supported** | What the installer sets up — [INSTALL.md](INSTALL.md), [USAGE.md](USAGE.md) |
 | **GNOME** | Wayland | `gdctl` | **Implemented, unverified** | CI covers the call contract against a stub; no run on real GNOME hardware yet — [notes](#gnome) |
 | **Sway, labwc, other wlroots** | Wayland | wlroots tooling (`wlr-randr`, `kanshi`) | Planned | [milestone 5](https://github.com/mdj2812/sunshine-vdisplay/milestone/5) |
 | **Hyprland** | Wayland | `hyprctl` | Planned | [milestone 5](https://github.com/mdj2812/sunshine-vdisplay/milestone/5) |
@@ -25,7 +25,7 @@ One parsing trap worth knowing: `kscreen-doctor` colours its output **even when 
 
 Tracked in the [other desktop environments milestone](https://github.com/mdj2812/sunshine-vdisplay/milestone/5). The EDID, initramfs, and Sunshine parts of this repo do not care which desktop you run — only the display switching does.
 
-**Status: implemented, unverified.** `vdisplay-common.sh` has a `gnome_*` backend that drives `gdctl`, covered by `tests/desktop-backends-test.sh` against a stub. Nobody has run it in a real GNOME session yet — [issue #4](https://github.com/mdj2812/sunshine-vdisplay/issues/4) has a reporter with working scripts, and the [UHD 770 field report](INTEL.md#field-reports) is where the `gdctl` behaviour below was observed.
+**Status: implemented, unverified.** `scripts/backends/gnome.sh` drives `gdctl`, covered by `tests/desktop-backends-test.sh` against a stub. Nobody has run it in a real GNOME session yet — [issue #4](https://github.com/mdj2812/sunshine-vdisplay/issues/4) has a reporter with working scripts, and the [UHD 770 field report](INTEL.md#field-reports) is where the `gdctl` behaviour below was observed.
 
 `gdctl` expresses the switch as one declarative call rather than a sequence:
 
@@ -50,7 +50,9 @@ Tracked in the [other desktop environments milestone](https://github.com/mdj2812
 | `de_show_outputs` | dump the current configuration |
 | `de_disable_night_color` / `de_restore_night_color` | pause and restore Night Color / Night Light |
 
-A backend is a `kde_*` or `gnome_*` set of those functions; `de_desktop` chooses between them. Everything around the switch is shared: the `VDISPLAY`/`PDISPLAY` overrides in `vdisplay-common.local.sh`, connector presence from sysfs, client-adaptive resolution (matched against `EDID_MODES`, which the installer writes), and the `VDISPLAY_*` tuning knobs.
+A backend is one file, `scripts/backends/<desktop>.sh`, implementing the `backend_*` versions of those entry points — `backend_require_tools`, `backend_has_output`, `backend_switch_to_virtual`, `backend_switch_to_physical`, `backend_show_outputs`, `backend_disable_night_color`, `backend_restore_night_color`. `vdisplay-common.sh` works out the desktop, sources the matching file, and dispatches; the installer copies the `backends/` directory to `~/bin/backends`.
+
+Everything around the switch is shared: the `VDISPLAY`/`PDISPLAY` overrides in `vdisplay-common.local.sh`, connector presence from sysfs, client-adaptive resolution (matched against `EDID_MODES`, which the installer writes), and the `VDISPLAY_*` tuning knobs.
 
 Two per-backend details worth knowing: `kscreen-doctor` colours its output even when piped, so the KDE backend strips escape codes before matching; and `gdctl show` lists only *configured* monitors, so the GNOME backend takes connector presence from sysfs instead.
 
@@ -58,4 +60,4 @@ Two per-backend details worth knowing: `kscreen-doctor` colours its output even 
 
 ## Adding a desktop
 
-Add a `de_*` case for the new desktop plus its `tool_*` functions in `scripts/vdisplay-common.sh`, and extend `tests/desktop-backends-test.sh` with its stub and assertions — that test is what keeps the backends from drifting. Hardware reports for any of the planned rows are welcome: open an issue with the [AMD](https://github.com/mdj2812/sunshine-vdisplay/issues/new?template=amd-testing.md) or [Intel](https://github.com/mdj2812/sunshine-vdisplay/issues/new?template=intel-testing.md) template and say which desktop you run.
+Add `scripts/backends/<desktop>.sh` with the `backend_*` functions, a case for it in `de_desktop`, and a stub plus assertions in `tests/desktop-backends-test.sh` — that test is what keeps the backends from drifting. `scripts/backends/kde.sh` and `gnome.sh` are the two references. Hardware reports for any of the planned rows are welcome: open an issue with the [AMD](https://github.com/mdj2812/sunshine-vdisplay/issues/new?template=amd-testing.md) or [Intel](https://github.com/mdj2812/sunshine-vdisplay/issues/new?template=intel-testing.md) template and say which desktop you run.

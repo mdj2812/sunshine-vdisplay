@@ -93,7 +93,8 @@ Sunshine captures the virtual output via **KMS** (`capture = kms`, `encoder = nv
 | `scripts/create-vdisplay-edid.py` | EDID generator |
 | `scripts/vdisplay-on.sh` | Enable virtual, disable physical |
 | `scripts/vdisplay-off.sh` | Restore physical, disable virtual |
-| `scripts/vdisplay-common.sh` | Shared KDE/Wayland helpers |
+| `scripts/vdisplay-common.sh` | Shared helpers and desktop backend dispatch |
+| `scripts/backends/` | Per-desktop switching backends (`kde.sh`, `gnome.sh`) |
 | `config/sunshine.conf` | Sunshine config template (`__HOME__` placeholders) |
 | `system/mkinitcpio.files.snippet` | Initramfs EDID reference |
 | `system/limine.cmdline.snippet` | Kernel param reference |
