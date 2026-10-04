@@ -399,9 +399,11 @@ warn_desktop_support() {
     local desktop="${XDG_CURRENT_DESKTOP:-}"
 
     [[ -n "$desktop" ]] || return 0
-    [[ "$desktop" == *KDE* ]] && return 0
+    case "$desktop" in
+        *KDE* | *GNOME*) return 0 ;;
+    esac
 
-    warn "desktop '${desktop}' is not KDE Plasma: vdisplay-on.sh/vdisplay-off.sh use kscreen-doctor and will not switch displays here"
+    warn "desktop '${desktop}' has no display backend: the switching scripts cannot switch displays here"
     warn "  EDID, initramfs, and Sunshine setup still apply — wire the swap into global_prep_cmd yourself (see docs/DESKTOPS.md)"
 }
 
@@ -568,6 +570,8 @@ install_edid_and_scripts() {
     install -d "${HOME}/bin"
     install -m 755 "${REPO_ROOT}/scripts/"*.py "${HOME}/bin/"
     install -m 755 "${REPO_ROOT}/scripts/vdisplay-common.sh" "${HOME}/bin/"
+    install -d "${HOME}/bin/backends"
+    install -m 755 "${REPO_ROOT}/scripts/backends/"*.sh "${HOME}/bin/backends/"
     install -m 755 "${REPO_ROOT}/scripts/vdisplay-on.sh" "${HOME}/bin/"
     install -m 755 "${REPO_ROOT}/scripts/vdisplay-off.sh" "${HOME}/bin/"
 
