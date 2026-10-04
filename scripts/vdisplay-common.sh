@@ -27,6 +27,16 @@ kscreen() {
     kscreen-doctor "$@"
 }
 
+# The switching helpers drive kscreen-doctor, which exists only on KDE Plasma
+# Wayland. Other desktops need their own swap step — see docs/DESKTOPS.md.
+require_kscreen() {
+    command -v kscreen-doctor >/dev/null 2>&1 && return 0
+
+    echo "kscreen-doctor not found: display switching needs KDE Plasma Wayland." >&2
+    echo "Other desktops need their own swap step — see docs/DESKTOPS.md." >&2
+    return 1
+}
+
 connector_status() {
     local connector="$1"
     local path

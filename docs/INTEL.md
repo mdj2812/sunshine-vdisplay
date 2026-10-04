@@ -6,7 +6,7 @@ Notes for the [Intel iGPU milestone](https://github.com/mdj2812/sunshine-vdispla
 
 | Path | Best for | Notes |
 |------|----------|-------|
-| **EDID + force-enable** (primary) | Desktops that also use a physical monitor | Same technique as NVIDIA/AMD: `drm.edid_firmware=<connector>:edid/virtual-display.bin video=<connector>:e` on an **i915** or **xe** connector, KMS capture, `kscreen-doctor` switching. Pick a **disconnected** HDMI/DP port for `VDISPLAY`. |
+| **EDID + force-enable** (primary) | Desktops that also use a physical monitor | Same technique as NVIDIA/AMD: `drm.edid_firmware=<connector>:edid/virtual-display.bin video=<connector>:e` on an **i915** or **xe** connector, KMS capture, `kscreen-doctor` switching. Pick a **disconnected** HDMI/DP port for `VDISPLAY` — prefer **HDMI**, which exposes far more modes than DP on this hardware ([field report](#field-reports)). Confirmed end to end on UHD 770 (i915). |
 | **`krfb-virtualmonitor` + portal** | KDE-only, no boot changes | Compositor-native virtual output, `capture = portal`. See [ALTERNATIVES.md](ALTERNATIVES.md). Works on Intel without boot params. |
 | **Headless / vkms-style experiments** | Lab only | Intel has no direct `amdgpu.virtual_display` equivalent; vkms or mediatek-style paths are poor fits for daily-driver + physical monitor setups. |
 
@@ -44,6 +44,23 @@ ssh pve 'bash /tmp/sunshine-vdisplay/tests/pve/enable-gpu-passthrough.sh 122'
 ```
 
 See [tests/README.md](../tests/README.md) for full PVE lab notes.
+
+## Field reports
+
+Reports from hardware this project does not have in hand. They are volunteer results, not project-verified setups.
+
+### UHD 770 (Raptor Lake-S) — EDID + force-enable works end-to-end
+
+From [issue #4](https://github.com/mdj2812/sunshine-vdisplay/issues/4): Ubuntu 26.04, kernel 7.0, GRUB + initramfs-tools, GNOME Shell 50.1 Wayland, Sunshine 2026.914.
+
+- **`i915` binds**, not `xe`: `xe` is present as a module but does not claim Raptor Lake-S iGPUs.
+- `VDISPLAY=HDMI-A-1`, `PDISPLAY=DP-2`. The virtual connector came up with the injected EDID and streamed with `capture = kms` and `encoder = vaapi`, negotiating HEVC (`hevc_vaapi`). Gen12.2 has no AV1 encoder, so Sunshine's `av1_vaapi` probe error there is expected.
+- **Prefer HDMI for the virtual connector**: after a runtime force-enable, every HDMI connector reported **38 modes**, while the DP connectors reported **7**. The installer already prefers a free HDMI port.
+- Moonlight's requested size was matched exactly — 1280x720 and 2560x1440@60 requests each landed on the corresponding mode — and the physical monitor stayed dark for the whole session.
+- Measured host cost at 2560x1440@60 HEVC: Sunshine ~7 % of one core, gnome-shell ~4 %, machine-wide CPU ~2 %, ~5 Mbps on the wire against a 44.6 Mbps ceiling. Encoding runs on the media engine, so CPU cost stays low.
+- HDR was not tested on this machine.
+
+The switching step was driven by `gdctl` rather than `kscreen-doctor`. The GNOME notes live in [DESKTOPS.md](DESKTOPS.md#gnome).
 
 ## What we need from testers
 

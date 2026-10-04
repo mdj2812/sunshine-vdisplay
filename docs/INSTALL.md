@@ -56,7 +56,7 @@ cd sunshine-vdisplay
 5. Patch initramfs config and your bootloader cmdline — an existing `drm.edid_firmware` mapping for another connector (a dummy plug, a panel) is merged into one comma-separated value instead of being replaced
 6. Rebuild initramfs and apply Sunshine capabilities
 7. Disable screen blanking that breaks headless virtual outputs
-8. Configure Sunshine `global_prep_cmd` to swap displays when a Moonlight session starts and ends
+8. Configure Sunshine `global_prep_cmd` to swap displays when a Moonlight session starts and ends — the swap scripts are KDE-only, and the installer warns if you are on another desktop ([DESKTOPS.md](DESKTOPS.md))
 
 Reboot when prompted, then connect with Moonlight.
 

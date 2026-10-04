@@ -10,6 +10,8 @@
 | Undo cmd doesn't run | Runs when the Moonlight **session ends**, not when the app is minimized |
 | Display stays swapped after a Sunshine crash | Sunshine never runs the prep-cmd undo if it dies — see [Crash recovery](#crash-recovery) |
 | Re-testing the force flag without a reboot | The connector only changes state when the compositor re-enumerates it — see [Runtime force flag](#runtime-force-flag) |
+| `.../force` write fails with *Permission denied* | Kernel 7.0 dropped that attribute — write `status` instead, see [Runtime force flag](#runtime-force-flag) |
+| Physical monitor shows the virtual EDID or the wrong modes | A `drm.edid_firmware` entry with no `<connector>:` prefix applies to every connector — always write `connector:file` (see [MANUAL.md](MANUAL.md#3-kernel-parameters)) |
 
 ## Verify after reboot
 
@@ -17,9 +19,46 @@
 cat /proc/cmdline
 cat /sys/class/drm/card*-HDMI-A-1/status
 cat /sys/class/drm/card*-HDMI-A-1/modes
+
+# the kernel adopted the injected blob if the first bytes are the EDID header
+od -An -tx1 -N8 /sys/class/drm/card*-HDMI-A-1/edid   # 00 ff ff ff ff ff ff 00
 ```
 
 Replace `HDMI-A-1` with your virtual connector name.
+
+`connected` on its own is weak evidence — the kernel reports it for any attached monitor. The `edid` attribute is the real confirmation: an empty file or one without the `00 ff ff ff ff ff ff 00` header means the firmware blob was not picked up.
+
+## Runtime force flag
+
+The installer sets the kernel parameters at boot, which needs an initramfs rebuild and a reboot. To exercise the same DRM force state on a running system:
+
+```bash
+# force the connector on (printf, not echo: the bare value must have no newline)
+printf on | sudo tee /sys/class/drm/card1-HDMI-A-1/force >/dev/null
+
+# the connector only changes state once the compositor re-enumerates it
+printf change | sudo tee /sys/class/drm/card1/uevent >/dev/null
+```
+
+On **kernel 7.0 and later** there is no per-connector `force` attribute; the connector directory carries `status` instead, and that is what you write:
+
+```bash
+# DRM_FORCE_ON — the connector reports connected
+printf on | sudo tee /sys/class/drm/card1-HDMI-A-1/status >/dev/null
+printf change | sudo tee /sys/class/drm/card1/uevent >/dev/null
+
+# back to UNSPECIFIED, plus a re-probe
+printf detect | sudo tee /sys/class/drm/card1-HDMI-A-1/status >/dev/null
+```
+
+`off` and `on-digital` set the remaining DRM force states. If writing to `.../force` fails with *Permission denied* rather than *No such file or directory*, this is why: sysfs directories are read-only, so the shell cannot create the missing file and reports the failure as an access error.
+
+Two caveats either way:
+
+- The kernel caches connector status, so reverting (`unspecified` on kernels with `force`, `detect` without it) also needs a reboot or a compositor restart before it takes effect.
+- At boot neither applies: the force is set before the first connector probe, so no `uevent` nudge is needed.
+
+This is a testing shortcut for hardware reports, not a substitute for the kernel parameters — a runtime force is gone after reboot. It is also how the [AMD field report](AMD.md#field-reports) and the [Intel field report](INTEL.md#field-reports) were measured.
 
 ## Crash recovery
 
@@ -45,25 +84,6 @@ systemctl --user restart sunshine.service
 
 Use the unit name that matches your install: `sunshine.service` (distro package) or `app-dev.lizardbyte.app.Sunshine.service` (Flatpak). This covers Sunshine stopping, not the machine going down — if the outputs are still swapped after a reboot, run `~/bin/vdisplay-off.sh`.
 
-## Runtime force flag
-
-The installer sets the kernel parameters at boot, which needs an initramfs rebuild and a reboot. To exercise the same DRM force flag on a running system:
-
-```bash
-# force the connector on (printf, not echo: the bare value must have no newline)
-printf on | sudo tee /sys/class/drm/card1-HDMI-A-1/force >/dev/null
-
-# the connector only changes state once the compositor re-enumerates it
-printf change | sudo tee /sys/class/drm/card1/uevent >/dev/null
-```
-
-Two caveats when testing this way:
-
-- The kernel caches connector status, so reverting with `printf unspecified | sudo tee .../force` also needs a reboot or a compositor restart before it takes effect.
-- At boot neither applies: the force flag is set before the first connector probe, so no `uevent` nudge is needed.
-
-This is a testing shortcut for the [AMD path](AMD.md) and other hardware reports, not a substitute for the kernel parameters — a runtime force is gone after reboot.
-
 ## Limitations
 
 - **HDR** on force-enabled virtual connectors is unverified end to end. The generated EDID advertises HDR10 static metadata (PQ) and BT.2020 colorimetry, and KWin accepts `output.<connector>.hdr.enable` — but an active virtual output has not been confirmed to drive HDR. See [HDR.md](HDR.md) and [milestone 6](https://github.com/mdj2812/sunshine-vdisplay/milestone/6)
@@ -72,4 +92,4 @@ This is a testing shortcut for the [AMD path](AMD.md) and other hardware reports
 - **144 Hz** works on Linux when the mode is listed in EDID and `kscreen-doctor output.<connector>.mode.*` shows it — common for 1080p/1440p/1600p on force-enabled connectors; Moonlight must request 144 (`SUNSHINE_CLIENT_FPS`). Only **6 modes** fit in one EDID blob, so pick 144 Hz variants deliberately in the installer
 - New EDID modes require regenerating the binary, rebuilding initramfs, and rebooting
 - Linux-only; Sunshine does not create virtual displays — this repo handles that part
-- Display switching scripts require **KDE Plasma Wayland** (`kscreen-doctor`); other desktops need different tooling
+- Display switching scripts require **KDE Plasma Wayland** (`kscreen-doctor`); other desktops need their own swap step — see [DESKTOPS.md](DESKTOPS.md)

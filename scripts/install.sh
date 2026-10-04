@@ -392,6 +392,19 @@ detect_distro_label() {
     echo "Linux"
 }
 
+# The display switching scripts drive kscreen-doctor, which is KDE-only. The
+# EDID, initramfs, and Sunshine parts still apply on other desktops, so warn
+# instead of failing — see docs/ALTERNATIVES.md.
+warn_desktop_support() {
+    local desktop="${XDG_CURRENT_DESKTOP:-}"
+
+    [[ -n "$desktop" ]] || return 0
+    [[ "$desktop" == *KDE* ]] && return 0
+
+    warn "desktop '${desktop}' is not KDE Plasma: vdisplay-on.sh/vdisplay-off.sh use kscreen-doctor and will not switch displays here"
+    warn "  EDID, initramfs, and Sunshine setup still apply — wire the swap into global_prep_cmd yourself (see docs/DESKTOPS.md)"
+}
+
 configure_initramfs() {
     local backend
     backend="$(detect_initramfs_backend)"
@@ -660,6 +673,7 @@ main() {
     log "Initramfs backend: $(detect_initramfs_backend)"
     log "Virtual connector: ${VDISPLAY}"
     [[ -n "$PDISPLAY" ]] && log "Physical connector: ${PDISPLAY}"
+    warn_desktop_support
 
     configure_edid_modes
     log "Virtual mode: ${RES}"
