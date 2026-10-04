@@ -4,7 +4,7 @@
 |---------|-----|
 | Sunshine: "Couldn't find monitor" | `output_name` must be a numeric KMS index — check `sunshine.log` |
 | Virtual connector stays disconnected | Verify kernel cmdline includes both `drm.edid_firmware` and `video=:e`; rebuild initramfs |
-| `vdisplay-on.sh`: display not found | Script needs a running session (`WAYLAND_DISPLAY=wayland-0`) and a supported desktop backend ([DESKTOPS.md](DESKTOPS.md)) |
+| `vdisplay-on.sh`: display not found | Script needs a running desktop session — its display variable (`WAYLAND_DISPLAY`, `DISPLAY`) has to point at the session Sunshine is running in — and a supported backend ([DESKTOPS.md](DESKTOPS.md)) |
 | Stream goes black when idle | Disable DPMS / screen blanking (installer does this) |
 | Modes capped at 1080p | EDID missing HDMI VSDB blocks — regenerate with included script |
 | Undo cmd doesn't run | Runs when the Moonlight **session ends**, not when the app is minimized |

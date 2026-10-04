@@ -4,7 +4,7 @@ The EDID, initramfs, and Sunshine parts of this repo are desktop-agnostic — th
 
 | Desktop | Session | Switching tool | Status | Notes |
 |---------|---------|----------------|--------|-------|
-| **KDE Plasma** | Wayland tested, X11 untested | `kscreen-doctor` | **Supported** | What the installer sets up — [INSTALL.md](INSTALL.md), [USAGE.md](USAGE.md) |
+| **KDE Plasma** | Wayland; X11 through RandR | `kscreen-doctor` | **Supported** | What the installer sets up — [INSTALL.md](INSTALL.md), [USAGE.md](USAGE.md) |
 | **GNOME** | Wayland | `gdctl` | **Implemented, unverified** | CI covers the call contract against a stub; no run on real GNOME hardware yet — [notes](#gnome) |
 | **Sway, labwc, other wlroots** | Wayland | wlroots tooling (`wlr-randr`, `kanshi`) | Planned | [milestone 5](https://github.com/mdj2812/sunshine-vdisplay/milestone/5) |
 | **Hyprland** | Wayland | `hyprctl` | Planned | [milestone 5](https://github.com/mdj2812/sunshine-vdisplay/milestone/5) |
@@ -12,6 +12,8 @@ The EDID, initramfs, and Sunshine parts of this repo are desktop-agnostic — th
 | **No compositor** (headless) | — | none needed | n/a | Nothing to switch; capture the virtual output directly |
 
 Planned rows name the tool we expect to use, not something this project has verified — no hardware report has exercised them yet. KDE Plasma Wayland is the only backend verified end to end; the GNOME backend is written from mutter's `gdctl` manual page and covered by tests against a stub, but nobody has run it in a GNOME session. On desktops without a backend the installer still does the EDID, initramfs, and Sunshine work, then warns that the swap step needs to be wired up by hand.
+
+The session column says what a backend drives, not what has been tested: `kscreen-doctor` talks to KScreen, which drives KWin on Wayland and RandR on X11, though only Wayland has been run end to end here.
 
 ## Per-desktop notes
 

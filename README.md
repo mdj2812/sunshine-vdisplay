@@ -19,7 +19,7 @@ Force-enable a spare GPU output with a custom EDID — no dummy plug required. I
 | Component | Notes |
 |-----------|-------|
 | GPU | NVIDIA with proprietary driver |
-| Desktop | KDE Plasma **Wayland** |
+| Desktop | KDE Plasma (Wayland tested) or GNOME (unverified) — see [DESKTOPS.md](docs/DESKTOPS.md) |
 | Streaming | [Sunshine](https://app.lizardbyte.dev/) with KMS capture |
 | Bootloader | Limine, GRUB, or systemd-boot |
 | Spare connector | Unused HDMI or DisplayPort (nothing plugged in) |

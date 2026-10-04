@@ -30,9 +30,17 @@ STATE_DIR="${STATE_DIR:-$HOME/.cache/vdisplay}"
 # Overridable so the smoke tests can fake a connector layout.
 VDISPLAY_SYSFS="${VDISPLAY_SYSFS:-/sys/class/drm}"
 
-export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}"
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=${XDG_RUNTIME_DIR}/bus}"
+
+# Sunshine runs the prep commands outside the compositor's own environment, so
+# fill in the display variable. Wayland is the tested path, but an X11 session
+# that already exports DISPLAY is left alone rather than being handed a
+# WAYLAND_DISPLAY it cannot use.
+if [[ -z "${WAYLAND_DISPLAY:-}" ]] \
+    && [[ "${XDG_SESSION_TYPE:-}" != "x11" || -z "${DISPLAY:-}" ]]; then
+    export WAYLAND_DISPLAY="wayland-0"
+fi
 
 _self_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND_DIR="${VDISPLAY_BACKEND_DIR:-${_self_dir}/backends}"
