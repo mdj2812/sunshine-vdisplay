@@ -399,9 +399,11 @@ warn_desktop_support() {
     local desktop="${XDG_CURRENT_DESKTOP:-}"
 
     [[ -n "$desktop" ]] || return 0
-    [[ "$desktop" == *KDE* ]] && return 0
+    case "$desktop" in
+        *KDE* | *GNOME*) return 0 ;;
+    esac
 
-    warn "desktop '${desktop}' is not KDE Plasma: vdisplay-on.sh/vdisplay-off.sh use kscreen-doctor and will not switch displays here"
+    warn "desktop '${desktop}' has no display backend: the switching scripts cover KDE Plasma Wayland (kscreen-doctor) and GNOME (gdctl)"
     warn "  EDID, initramfs, and Sunshine setup still apply — wire the swap into global_prep_cmd yourself (see docs/DESKTOPS.md)"
 }
 
