@@ -78,6 +78,7 @@ Sunshine captures the virtual output via **KMS** (`capture = kms`, `encoder = nv
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Milestones and planned platform support |
 | [tests/README.md](tests/README.md) | CI, smoke tests, and Proxmox lab notes |
 | [docs/AMD.md](docs/AMD.md) | AMD GPU paths, encoders, and testing notes |
+| [docs/HDR.md](docs/HDR.md) | HDR: what the EDID advertises, how to enable it, what is unverified |
 | [docs/ALTERNATIVES.md](docs/ALTERNATIVES.md) | KDE krfb vs EDID and other approaches |
 
 ## Repository layout

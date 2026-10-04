@@ -88,6 +88,7 @@ Local overrides for connector names and modes are saved to `~/bin/vdisplay-commo
 | `SKIP_EDID_PROMPT` | `0` | Set to `1` to skip interactive EDID mode selection |
 | `PDISPLAY_RES` | `2560x1440@143.99` | Physical display mode |
 | `SUNSHINE_OUTPUT` | `0` | Sunshine KMS monitor index |
+| `VDISPLAY_HDR` | `0` | Set to `1` to enable HDR + wide color gamut on the virtual display while streaming (see [HDR.md](HDR.md)) |
 | `SKIP_REBOOT` | `0` | Set to `1` to skip reboot prompt |
 | `I_HAVE_BACKED_UP` | `0` | Set to `1` to skip the startup backup confirmation |
 | `KEEP_SUNSHINE_CONF` | `0` | Set to `1` to leave `~/.config/sunshine/sunshine.conf` untouched |

@@ -18,6 +18,7 @@
 #   SKIP_EDID_PROMPT  Set to 1 to skip interactive EDID mode selection
 #   PDISPLAY_RES      Physical resolution (default: 2560x1440@143.99)
 #   SUNSHINE_OUTPUT   Sunshine KMS output index (default: 0)
+#   VDISPLAY_HDR      Set to 1 to enable HDR + wide color gamut on the virtual display while streaming
 #   SKIP_REBOOT       Set to 1 to skip reboot prompt
 #   I_HAVE_BACKED_UP     Set to 1 to skip the startup backup confirmation
 #   KEEP_SUNSHINE_CONF   Set to 1 to leave ~/.config/sunshine/sunshine.conf untouched
@@ -42,6 +43,7 @@ EXTRA_MODES="${EXTRA_MODES-}"
 EDID_MODES="${EDID_MODES-}"
 PDISPLAY_RES="${PDISPLAY_RES:-2560x1440@143.99}"
 SUNSHINE_OUTPUT="${SUNSHINE_OUTPUT:-0}"
+VDISPLAY_HDR="${VDISPLAY_HDR:-0}"
 REPO_URL="${REPO_URL:-https://github.com/mdj2812/sunshine-vdisplay.git}"
 WORK_DIR="${WORK_DIR:-$(mktemp -d /tmp/sunshine-vdisplay.XXXXXX)}"
 KEEP_WORK_DIR="${KEEP_WORK_DIR:-0}"
@@ -564,6 +566,7 @@ RES="${RES}"
 EXTRA_MODES="${EXTRA_MODES}"
 EDID_MODES="${EDID_MODES:-$RES${EXTRA_MODES:+,$EXTRA_MODES}}"
 PDISPLAY_RES="${PDISPLAY_RES}"
+VDISPLAY_HDR="${VDISPLAY_HDR}"
 EOF
 }
 

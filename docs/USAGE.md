@@ -16,7 +16,7 @@ Sunshine runs `vdisplay-on.sh` at session start and `vdisplay-off.sh` when the s
 
 ## Brightness tuning
 
-Virtual outputs are SDR-only on NVIDIA force-enabled connectors and may look darker than an HDR physical panel. The scripts apply:
+Virtual outputs are SDR unless you opt into HDR, and may look darker than an HDR physical panel. The scripts apply:
 
 - Matched scale (default `1.5`)
 - Brightness `100%`, dimming floor `100%`
@@ -27,6 +27,16 @@ Override:
 ```bash
 VDISPLAY_BRIGHTNESS=100 VDISPLAY_DIMMING=100 VDISPLAY_SCALE=1.5 ~/bin/vdisplay-on.sh
 ```
+
+### HDR
+
+The generated EDID advertises HDR10 static metadata (PQ) and BT.2020 colorimetry, but HDR is off by default. Turn it on for a stream with:
+
+```bash
+VDISPLAY_HDR=1 ~/bin/vdisplay-on.sh
+```
+
+That enables HDR and wide color gamut on the virtual output and applies `VDISPLAY_SDR_BRIGHTNESS` (default 400 nits) for SDR content; `vdisplay-off.sh` turns it back off. HDR still needs a client that decodes HDR10 — see [HDR.md](HDR.md).
 
 ## Custom resolutions
 
