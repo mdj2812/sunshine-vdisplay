@@ -60,7 +60,7 @@ From [issue #4](https://github.com/mdj2812/sunshine-vdisplay/issues/4): Ubuntu 2
 - Measured host cost at 2560x1440@60 HEVC: Sunshine ~7 % of one core, gnome-shell ~4 %, machine-wide CPU ~2 %, ~5 Mbps on the wire against a 44.6 Mbps ceiling. Encoding runs on the media engine, so CPU cost stays low.
 - HDR was not tested on this machine.
 
-The switching step was driven by `gdctl` rather than `kscreen-doctor`. The GNOME-specific notes live in [GNOME.md](GNOME.md) — a GNOME backend for the switching scripts is still wanted (milestone 5).
+The switching step was driven by `gdctl` rather than `kscreen-doctor`. The GNOME notes live in [DESKTOPS.md](DESKTOPS.md#gnome).
 
 ## What we need from testers
 
