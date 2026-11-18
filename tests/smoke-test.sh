@@ -45,6 +45,8 @@ verify_install_artifacts() {
 
     test -f /usr/lib/firmware/edid/virtual-display.bin
     test -f "${HOME}/bin/vdisplay-on.sh"
+    test -f "${HOME}/bin/backends/kde.sh"
+    test -f "${HOME}/bin/backends/gnome.sh"
     test -f "${HOME}/.config/sunshine/sunshine.conf"
 
     case "$backend" in
@@ -69,6 +71,7 @@ verify_uninstall_artifacts() {
 
     test ! -f /usr/lib/firmware/edid/virtual-display.bin
     test ! -f "${HOME}/bin/vdisplay-on.sh"
+    test ! -d "${HOME}/bin/backends"
 
     case "$backend" in
         mkinitcpio)

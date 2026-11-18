@@ -6,25 +6,8 @@ set -euo pipefail
 # shellcheck source=vdisplay-common.sh
 source "$(dirname "$0")/vdisplay-common.sh"
 
-require_kscreen || exit 1
+de_require_tools || exit 1
 
-if kscreen_has_output "$PDISPLAY"; then
-    echo "Restoring physical display..."
-    enable_output "$PDISPLAY" "$PDISPLAY_RES" 0 0 1
-else
-    echo "Physical display $PDISPLAY not found in KDE."
-fi
-
-if kscreen_has_output "$VDISPLAY"; then
-    if [[ "$VDISPLAY_HDR" == "1" ]] && output_hdr_enabled "$VDISPLAY"; then
-        set_output_hdr "$VDISPLAY" disable || true
-    fi
-    disable_output "$VDISPLAY"
-elif connector_present "$VDISPLAY"; then
-    echo "$VDISPLAY is connected in DRM but not managed by KDE."
-else
-    echo "$VDISPLAY not present"
-fi
-
-restore_night_color
-show_outputs
+de_switch_to_physical
+de_restore_night_color
+de_show_outputs

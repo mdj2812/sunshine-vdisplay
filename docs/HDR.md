@@ -40,6 +40,10 @@ Manual equivalent:
 kscreen-doctor output.HDMI-A-1.hdr.enable output.HDMI-A-1.wcg.enable
 ```
 
+On GNOME the colour mode is part of the same declarative call that switches the
+display, so `VDISPLAY_HDR=1` adds `--color-mode bt2100` to `gdctl set`. That path
+is implemented but not yet verified on GNOME hardware — see [DESKTOPS.md](DESKTOPS.md).
+
 ## How to confirm it
 
 `kscreen-doctor -o` prints the brightness block only for an output that is **enabled**:
