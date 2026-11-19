@@ -237,7 +237,7 @@ def build_base_block(primary, secondary=None, modes=None):
     rl[10] = 0x00
     rl[11:18] = b"\x0A\x20\x20\x20\x20\x20\x20"
     base[90:108] = rl
-    base[108:126] = make_descriptor(0xFC, b"VirtDisplay\n ")
+    base[108:126] = make_descriptor(0xFC, b"eDP-Virtual\n ")
     base[126] = 1
     return bytearray(fix_checksum(base))
 

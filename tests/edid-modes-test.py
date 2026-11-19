@@ -34,6 +34,7 @@ modes = [
 ]
 blob = EDID.build_edid(modes[0], modes[1:])
 assert len(blob) == 256
+assert blob[113:126] == b"eDP-Virtual\n "
 
 detailed = []
 for offset in (54, 72, 90, 108):
