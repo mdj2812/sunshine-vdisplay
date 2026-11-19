@@ -30,6 +30,9 @@ Override:
 VDISPLAY_BRIGHTNESS=100 VDISPLAY_DIMMING=100 VDISPLAY_SCALE=1.5 ~/bin/vdisplay-on.sh
 ```
 
+`VDISPLAY_SCALE` is persisted in `~/bin/vdisplay-common.local.sh` by the
+installer, so a preferred virtual-display scale survives future installs.
+
 ### HDR
 
 The generated EDID advertises HDR10 static metadata (PQ) and BT.2020 colorimetry, but HDR is off by default. Turn it on for a stream with:

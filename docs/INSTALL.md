@@ -87,6 +87,8 @@ Local overrides for connector names and modes are saved to `~/bin/vdisplay-commo
 | `EXTRA_MODES` | common presets | Comma-separated additional EDID modes (skips extra-mode menu when set) |
 | `SKIP_EDID_PROMPT` | `0` | Set to `1` to skip interactive EDID mode selection |
 | `PDISPLAY_RES` | `2560x1440@143.99` | Physical display mode |
+| `PDISPLAY_SCALE` | `1` | Physical display scale restored by the GNOME backend |
+| `VDISPLAY_SCALE` | `1.5` | Virtual display scale used while streaming |
 | `SUNSHINE_OUTPUT` | `0` | Sunshine KMS monitor index |
 | `VDISPLAY_HDR` | `0` | Set to `1` to enable HDR + wide color gamut on the virtual display while streaming (see [HDR.md](HDR.md)) |
 | `SKIP_REBOOT` | `0` | Set to `1` to skip reboot prompt |

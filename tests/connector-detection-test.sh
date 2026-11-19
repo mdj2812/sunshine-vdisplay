@@ -72,16 +72,20 @@ printf 'ok: resolves one unambiguous physical output from a stale override\n'
 mkdir -p "${work}/preserve-home/bin"
 cat >"${work}/preserve-home/bin/vdisplay-common.local.sh" <<'EOF'
 RES="3200x2136@60"
+VDISPLAY_SCALE="2.0"
+PDISPLAY_SCALE="1.5"
 EXTRA_MODES="2560x1440@120,1920x1080@60"
 EDID_MODES="3200x2136@60,2560x1440@120,1920x1080@60"
 EOF
 (
     export HOME="${work}/preserve-home"
-    unset RES EXTRA_MODES EDID_MODES
+    unset RES EXTRA_MODES EDID_MODES VDISPLAY_SCALE PDISPLAY_SCALE
     # shellcheck disable=SC1091
     source "${repo_root}/scripts/install.sh"
     load_existing_edid_config
     [[ "$RES" == "3200x2136@60" ]]
+    [[ "$VDISPLAY_SCALE" == "2.0" ]]
+    [[ "$PDISPLAY_SCALE" == "1.5" ]]
     [[ "$EXTRA_MODES" == "2560x1440@120,1920x1080@60" ]]
     [[ "$EDID_MODES" == "3200x2136@60,2560x1440@120,1920x1080@60" ]]
     [[ "$EDID_MODES_FROM_EXISTING" -eq 1 ]]
