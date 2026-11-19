@@ -98,6 +98,17 @@ EOF
 )
 printf 'ok: preserves custom modes and still offers the interactive selector\n'
 
+# First-time installs have no local override yet; loading preferences must be a
+# successful no-op rather than terminating install.sh under set -e.
+(
+    export HOME="${work}/first-install-home"
+    unset RES EXTRA_MODES EDID_MODES VDISPLAY_SCALE PDISPLAY_SCALE
+    # shellcheck disable=SC1091
+    source "${repo_root}/scripts/install.sh"
+    load_existing_edid_config
+)
+printf 'ok: first-time install successfully skips missing local preferences\n'
+
 # The installer's support warning must agree with the runtime backend list.
 (
     export HOME="${work}/desktop-home"

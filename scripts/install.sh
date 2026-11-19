@@ -255,7 +255,7 @@ load_existing_edid_config() {
 
     # Preserve hand-selected modes and output scales across installer reruns.
     # Explicit environment values always take precedence.
-    [[ -f "$local_file" ]] || return
+    [[ -f "$local_file" ]] || return 0
 
     if [[ "$RES_EXPLICIT" -eq 0 && "$EDID_MODES_EXPLICIT" -eq 0 && "$EXTRA_MODES_PROVIDED" -eq 0 ]]; then
         existing_res="$(sed -n 's/^RES="\(.*\)"$/\1/p' "$local_file" | tail -n 1)"
