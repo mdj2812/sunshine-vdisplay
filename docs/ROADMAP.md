@@ -1,6 +1,6 @@
 # Roadmap
 
-Current scope is **NVIDIA + KDE Plasma Wayland**. Planned work is tracked in [GitHub milestones](https://github.com/mdj2812/sunshine-vdisplay/milestones):
+The verified baseline is **NVIDIA + KDE Plasma Wayland**. Display backends for GNOME and Umbriel are implemented and covered by command-contract tests. Planned work is tracked in [GitHub milestones](https://github.com/mdj2812/sunshine-vdisplay/milestones):
 
 | Milestone | Goal |
 |-----------|------|
@@ -8,7 +8,7 @@ Current scope is **NVIDIA + KDE Plasma Wayland**. Planned work is tracked in [Gi
 | [AMD GPU](https://github.com/mdj2812/sunshine-vdisplay/milestone/2) | EDID + force-enable on spare connector (primary); VAAPI and `hevc_vulkan` encoders; evaluate vkms headless-only path — see [AMD.md](AMD.md) |
 | [Intel iGPU](https://github.com/mdj2812/sunshine-vdisplay/milestone/3) | i915/xe virtual outputs, QSV/VAAPI encoding |
 | [X11](https://github.com/mdj2812/sunshine-vdisplay/milestone/4) | X11 session support via `xrandr` display switching |
-| [Other desktop environments](https://github.com/mdj2812/sunshine-vdisplay/milestone/5) | GNOME, Sway, labwc, and other compositors beyond `kscreen-doctor` |
+| [Other desktop environments](https://github.com/mdj2812/sunshine-vdisplay/milestone/5) | GNOME, Umbriel, Sway, labwc, and other compositors beyond `kscreen-doctor` |
 | [HDR](https://github.com/mdj2812/sunshine-vdisplay/milestone/6) | End-to-end HDR from a force-enabled virtual output. The generated EDID already advertises HDR10 static metadata (PQ) and BT.2020 RGB colorimetry; the open work is compositor and driver support (NVIDIA virtual connectors do not enable HDR today) and Sunshine HDR streaming |
 
 Related docs:

@@ -6,7 +6,7 @@ The installer auto-detects the initramfs backend:
 
 | Backend | Distros | What the installer does |
 |---------|---------|-------------------------|
-| **mkinitcpio** | Arch, CachyOS, EndeavourOS, Manjaro, … | Adds EDID to `FILES=` in `/etc/mkinitcpio.conf`, runs `mkinitcpio -P` |
+| **mkinitcpio** | Arch, CachyOS, EndeavourOS, Manjaro, … | Adds EDID to `FILES=` in `/etc/mkinitcpio.conf`; runs `limine-mkinitcpio` when the Limine hook is installed, otherwise `mkinitcpio -P` |
 | **dracut** | Fedora, Nobara, RHEL, openSUSE, … | Writes `/etc/dracut.conf.d/99-sunshine-vdisplay.conf`, runs `dracut -f` |
 | **initramfs-tools** | Debian, Ubuntu, Linux Mint, Pop!\_OS, … | Installs `/etc/initramfs-tools/hooks/sunshine-vdisplay-edid`, runs `update-initramfs -u -k all` |
 
@@ -50,13 +50,13 @@ cd sunshine-vdisplay
 ### What the installer does
 
 1. Detect distro and initramfs backend
-2. Auto-detect connectors (prefers unused **HDMI**, then **DP**)
+2. Auto-detect connectors (prefers unused **HDMI**, then **DP**) and excludes a previous `virtual-display.bin` connector from physical-monitor selection
 3. Generate and install EDID firmware to `/usr/lib/firmware/edid/` (interactive mode selection, or set `RES` / `EXTRA_MODES`)
 4. Install scripts to `~/bin` and Sunshine config to `~/.config/sunshine/` (backs up an existing `sunshine.conf` before replacing it)
 5. Patch initramfs config and your bootloader cmdline — an existing `drm.edid_firmware` mapping for another connector (a dummy plug, a panel) is merged into one comma-separated value instead of being replaced
 6. Rebuild initramfs and apply Sunshine capabilities
 7. Disable screen blanking that breaks headless virtual outputs
-8. Configure Sunshine `global_prep_cmd` to swap displays when a Moonlight session starts and ends — the swap scripts need a desktop backend, and the installer warns when yours has none ([DESKTOPS.md](DESKTOPS.md))
+8. Configure Sunshine `global_prep_cmd` to swap displays when a Moonlight session starts and ends — the swap scripts support KDE Plasma, GNOME, and Umbriel, and the installer warns when yours has none ([DESKTOPS.md](DESKTOPS.md))
 
 Reboot when prompted, then connect with Moonlight.
 
@@ -87,6 +87,8 @@ Local overrides for connector names and modes are saved to `~/bin/vdisplay-commo
 | `EXTRA_MODES` | common presets | Comma-separated additional EDID modes (skips extra-mode menu when set) |
 | `SKIP_EDID_PROMPT` | `0` | Set to `1` to skip interactive EDID mode selection |
 | `PDISPLAY_RES` | `2560x1440@143.99` | Physical display mode |
+| `PDISPLAY_SCALE` | `1` | Physical display scale restored by the GNOME backend |
+| `VDISPLAY_SCALE` | `1.5` | Virtual display scale used while streaming |
 | `SUNSHINE_OUTPUT` | `0` | Sunshine KMS monitor index |
 | `VDISPLAY_HDR` | `0` | Set to `1` to enable HDR + wide color gamut on the virtual display while streaming (see [HDR.md](HDR.md)) |
 | `SKIP_REBOOT` | `0` | Set to `1` to skip reboot prompt |

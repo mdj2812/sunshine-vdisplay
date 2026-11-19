@@ -33,6 +33,8 @@ set -euo pipefail
 
 VDISPLAY="${VDISPLAY:-}"
 PDISPLAY="${PDISPLAY:-}"
+RES_EXPLICIT=0
+[[ -n "${RES+x}" ]] && RES_EXPLICIT=1
 RES="${RES:-2560x1440@120}"
 if [[ -n "${EXTRA_MODES+x}" ]]; then
     EXTRA_MODES_PROVIDED=1
@@ -40,8 +42,17 @@ else
     EXTRA_MODES_PROVIDED=0
 fi
 EXTRA_MODES="${EXTRA_MODES-}"
+EDID_MODES_EXPLICIT=0
+[[ -n "${EDID_MODES+x}" ]] && EDID_MODES_EXPLICIT=1
 EDID_MODES="${EDID_MODES-}"
+EDID_MODES_FROM_EXISTING=0
+PDISPLAY_SCALE_EXPLICIT=0
+[[ -n "${PDISPLAY_SCALE+x}" ]] && PDISPLAY_SCALE_EXPLICIT=1
 PDISPLAY_RES="${PDISPLAY_RES:-2560x1440@143.99}"
+PDISPLAY_SCALE="${PDISPLAY_SCALE:-1}"
+VDISPLAY_SCALE_EXPLICIT=0
+[[ -n "${VDISPLAY_SCALE+x}" ]] && VDISPLAY_SCALE_EXPLICIT=1
+VDISPLAY_SCALE="${VDISPLAY_SCALE:-1.5}"
 SUNSHINE_OUTPUT="${SUNSHINE_OUTPUT:-0}"
 VDISPLAY_HDR="${VDISPLAY_HDR:-0}"
 REPO_URL="${REPO_URL:-https://github.com/mdj2812/sunshine-vdisplay.git}"
@@ -49,6 +60,8 @@ WORK_DIR="${WORK_DIR:-$(mktemp -d /tmp/sunshine-vdisplay.XXXXXX)}"
 KEEP_WORK_DIR="${KEEP_WORK_DIR:-0}"
 INITRAMFS_BACKEND="${INITRAMFS_BACKEND:-}"
 EDID_FIRMWARE="/usr/lib/firmware/edid/virtual-display.bin"
+VDISPLAY_SYSFS="${VDISPLAY_SYSFS:-/sys/class/drm}"
+VDISPLAY_CMDLINE_FILE="${VDISPLAY_CMDLINE_FILE:-/proc/cmdline}"
 
 if [[ -t 1 ]]; then
     C_RESET=$'\033[0m'
@@ -143,7 +156,7 @@ as_root() {
 connector_status() {
     local connector="$1"
     local path
-    for path in /sys/class/drm/card*-"${connector}"/status; do
+    for path in "${VDISPLAY_SYSFS}"/card*-"${connector}"/status; do
         [[ -f "$path" ]] || continue
         cat "$path"
         return 0
@@ -153,7 +166,7 @@ connector_status() {
 
 list_connectors() {
     local path connector
-    for path in /sys/class/drm/card*-*; do
+    for path in "${VDISPLAY_SYSFS}"/card*-*; do
         [[ -f "$path/status" ]] || continue
         connector="$(basename "$path")"
         connector="${connector#card*-}"
@@ -161,8 +174,24 @@ list_connectors() {
     done
 }
 
+connector_has_virtual_edid() {
+    local connector="$1"
+    local cmdline
+
+    [[ -f "$VDISPLAY_CMDLINE_FILE" ]] || return 1
+    IFS= read -r cmdline <"$VDISPLAY_CMDLINE_FILE" || true
+
+    # An existing virtual connector remains "connected" while the installer
+    # runs. Exclude it from physical-monitor selection when it is the DRM EDID
+    # output managed by this project.
+    [[ "$cmdline" == *"drm.edid_firmware=${connector}:"*"virtual-display.bin"* ]] \
+        || [[ "$cmdline" == *"video=${connector}:e"* ]]
+}
+
 pick_virtual_connector() {
-    local connector status
+    local connector status connectors
+    connectors="$(list_connectors)"
+
     while IFS=: read -r connector status; do
         [[ "$status" == "disconnected" ]] || continue
         case "$connector" in
@@ -171,7 +200,7 @@ pick_virtual_connector() {
                 return 0
                 ;;
         esac
-    done < <(list_connectors)
+    done <<<"$connectors"
 
     while IFS=: read -r connector status; do
         [[ "$status" == "disconnected" ]] || continue
@@ -181,22 +210,25 @@ pick_virtual_connector() {
                 return 0
                 ;;
         esac
-    done < <(list_connectors)
+    done <<<"$connectors"
     return 1
 }
 
 pick_physical_connector() {
-    local connector status virtual="$1"
+    local connector status virtual="$1" connectors
+    connectors="$(list_connectors)"
+
     while IFS=: read -r connector status; do
         [[ "$status" == "connected" ]] || continue
         [[ "$connector" == "$virtual" ]] && continue
+        connector_has_virtual_edid "$connector" && continue
         case "$connector" in
             HDMI-* | DP-* | eDP-*)
                 echo "$connector"
                 return 0
                 ;;
         esac
-    done < <(list_connectors)
+    done <<<"$connectors"
     return 1
 }
 
@@ -214,6 +246,49 @@ default_extra_modes() {
         fi
     done
     printf '%s' "$out"
+}
+
+load_existing_edid_config() {
+    local local_file="${HOME}/bin/vdisplay-common.local.sh"
+    local existing_res existing_modes existing_vscale existing_pscale item out=""
+    local -a modes=()
+
+    # Preserve hand-selected modes and output scales across installer reruns.
+    # Explicit environment values always take precedence.
+    [[ -f "$local_file" ]] || return 0
+
+    if [[ "$RES_EXPLICIT" -eq 0 && "$EDID_MODES_EXPLICIT" -eq 0 && "$EXTRA_MODES_PROVIDED" -eq 0 ]]; then
+        existing_res="$(sed -n 's/^RES="\(.*\)"$/\1/p' "$local_file" | tail -n 1)"
+        existing_modes="$(sed -n 's/^EDID_MODES="\(.*\)"$/\1/p' "$local_file" | tail -n 1)"
+        if [[ -n "$existing_res" && -n "$existing_modes" ]]; then
+            IFS=',' read -r -a modes <<<"$existing_modes"
+            for item in "${modes[@]}"; do
+                [[ "$item" == "$existing_res" ]] && continue
+                [[ -n "$item" ]] || continue
+                if [[ -n "$out" ]]; then
+                    out+=",${item}"
+                else
+                    out="$item"
+                fi
+            done
+
+            RES="$existing_res"
+            EDID_MODES="$existing_modes"
+            EXTRA_MODES="$out"
+            EDID_MODES_FROM_EXISTING=1
+        fi
+    fi
+
+    if [[ "$VDISPLAY_SCALE_EXPLICIT" -eq 0 ]]; then
+        existing_vscale="$(sed -n 's/^VDISPLAY_SCALE="\(.*\)"$/\1/p' "$local_file" | tail -n 1)"
+        [[ -z "$existing_vscale" ]] || VDISPLAY_SCALE="$existing_vscale"
+    fi
+    if [[ "$PDISPLAY_SCALE_EXPLICIT" -eq 0 ]]; then
+        existing_pscale="$(sed -n 's/^PDISPLAY_SCALE="\(.*\)"$/\1/p' "$local_file" | tail -n 1)"
+        [[ -z "$existing_pscale" ]] || PDISPLAY_SCALE="$existing_pscale"
+    fi
+
+    log "Preserving existing display preferences from ${local_file}"
 }
 
 have_install_tty() {
@@ -267,13 +342,14 @@ configure_edid_modes() {
         return
     fi
 
-    if [[ -n "${EDID_MODES:-}" ]]; then
+    if [[ -n "${EDID_MODES:-}" && "$EDID_MODES_FROM_EXISTING" -eq 0 ]]; then
         return
     fi
 
     if have_install_tty; then
         run_edid_setup_tui
     else
+        [[ "$EDID_MODES_FROM_EXISTING" -eq 0 ]] || return
         if [[ -z "$EXTRA_MODES" ]]; then
             EXTRA_MODES="$(default_extra_modes "$RES")"
         fi
@@ -392,19 +468,30 @@ detect_distro_label() {
     echo "Linux"
 }
 
-# The display switching scripts drive kscreen-doctor, which is KDE-only. The
-# EDID, initramfs, and Sunshine parts still apply on other desktops, so warn
-# instead of failing — see docs/ALTERNATIVES.md.
+# The EDID, initramfs, and Sunshine parts are desktop-agnostic, but automatic
+# display switching needs an implemented backend. Warn instead of failing on
+# desktops that do not have one yet.
 warn_desktop_support() {
     local desktop="${XDG_CURRENT_DESKTOP:-}"
 
     [[ -n "$desktop" ]] || return 0
     case "$desktop" in
-        *KDE* | *GNOME*) return 0 ;;
+        *KDE* | *GNOME* | *umbriel* | *Umbriel*) return 0 ;;
     esac
 
     warn "desktop '${desktop}' has no display backend: the switching scripts cannot switch displays here"
     warn "  EDID, initramfs, and Sunshine setup still apply — wire the swap into global_prep_cmd yourself (see docs/DESKTOPS.md)"
+}
+
+rebuild_mkinitcpio() {
+    if command -v limine-mkinitcpio >/dev/null 2>&1; then
+        log "Rebuilding initramfs and Limine entries with limine-mkinitcpio"
+        as_root limine-mkinitcpio
+        return
+    fi
+
+    log "Rebuilding initramfs with mkinitcpio"
+    as_root mkinitcpio -P
 }
 
 configure_initramfs() {
@@ -415,10 +502,9 @@ configure_initramfs() {
         mkinitcpio)
             merge_mkinitcpio || die "failed to configure mkinitcpio"
             if [[ "${SKIP_INITRAMFS_REBUILD:-0}" == "1" ]]; then
-                warn "SKIP_INITRAMFS_REBUILD=1 — skipped mkinitcpio -P"
+                warn "SKIP_INITRAMFS_REBUILD=1 — skipped initramfs rebuild"
             else
-                log "Rebuilding initramfs with mkinitcpio"
-                as_root mkinitcpio -P
+                rebuild_mkinitcpio
             fi
             ;;
         dracut)
@@ -579,6 +665,8 @@ install_edid_and_scripts() {
 # Local overrides generated by install.sh
 VDISPLAY="${VDISPLAY}"
 PDISPLAY="${PDISPLAY}"
+PDISPLAY_SCALE="${PDISPLAY_SCALE}"
+VDISPLAY_SCALE="${VDISPLAY_SCALE}"
 RES="${RES}"
 EXTRA_MODES="${EXTRA_MODES}"
 EDID_MODES="${EDID_MODES:-$RES${EXTRA_MODES:+,$EXTRA_MODES}}"
@@ -665,6 +753,7 @@ main() {
     confirm_backup
     need_cmd sudo
     prepare_repo
+    load_existing_edid_config
 
     if [[ -z "$VDISPLAY" ]]; then
         VDISPLAY="$(pick_virtual_connector)" || die "could not auto-detect a disconnected HDMI/DP connector; set VDISPLAY="
@@ -719,4 +808,7 @@ EOF
     fi
 }
 
-main "$@"
+# Sourced tests load the connector helpers without running the installer.
+if [[ -z "${BASH_SOURCE[0]:-}" || "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

@@ -9,15 +9,16 @@ Every push runs:
 | Shell lint and format | ShellCheck, shfmt, `bash -n` |
 | EDID generator | 256-byte output |
 | Bootloader cmdline merge | `tests/cmdline-merge-test.sh` |
+| Connector auto-detection | `tests/connector-detection-test.sh` |
 | Display helpers | `tests/hdr-helpers-test.sh` |
-| Desktop smoke | `tests/desktop-backends-test.sh` per backend (`kde`, `gnome`) |
+| Desktop smoke | `tests/desktop-backends-test.sh` per backend (`kde`, `gnome`, `umbriel`) |
 | Install smoke test | `tests/smoke-test.sh` in a distro matrix (see below) |
 
 ## Desktop backend tests
 
 `tests/desktop-backends-test.sh` runs the real `vdisplay-on.sh` and
 `vdisplay-off.sh` once per desktop backend. The compositor tools (`kscreen-doctor`,
-`gdctl`) are stubs, so CI needs no session, GPU, or root — what it checks is the
+`gdctl`, `umbriel`) are stubs, so CI needs no session, GPU, or root — what it checks is the
 contract each backend has to honour: which calls go out with which arguments, that
 HDR rides along with the switch, that the backends do not call each other's tools,
 and that the restore path brings the physical monitor back.
@@ -26,7 +27,7 @@ The stub output includes the ANSI colour codes `kscreen-doctor` emits when piped
 since those break anchored parsing if they are not stripped.
 
 ```bash
-./tests/desktop-backends-test.sh          # both backends
+./tests/desktop-backends-test.sh          # all backends
 ./tests/desktop-backends-test.sh gnome    # one backend, as CI does per matrix job
 ```
 
@@ -62,6 +63,16 @@ used by `uninstall.sh` against fixture bootloader configs:
 
 ```bash
 ./tests/cmdline-merge-test.sh
+```
+
+## Connector detection tests
+
+`tests/connector-detection-test.sh` covers the case where a previously configured
+virtual EDID connector is still connected while the installer chooses a new
+physical monitor. The old virtual connector must not be selected as physical.
+
+```bash
+./tests/connector-detection-test.sh
 ```
 
 ### Smoke matrix (CI)

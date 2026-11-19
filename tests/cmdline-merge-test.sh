@@ -31,6 +31,36 @@ fail() {
 
 pass() { printf 'ok: %s\n' "$*"; }
 
+mkdir -p "${work}/bin"
+cat >"${work}/bin/limine-mkinitcpio" <<EOF
+#!/usr/bin/env bash
+echo limine-mkinitcpio >>"${work}/mkinitcpio-calls"
+EOF
+cat >"${work}/bin/mkinitcpio" <<EOF
+#!/usr/bin/env bash
+echo "mkinitcpio \$*" >>"${work}/mkinitcpio-calls"
+EOF
+chmod +x "${work}/bin/limine-mkinitcpio" "${work}/bin/mkinitcpio"
+ln -s /usr/bin/bash "${work}/bin/bash"
+
+PATH="${work}/bin" rebuild_mkinitcpio
+if [[ "$(cat "${work}/mkinitcpio-calls")" == "limine-mkinitcpio" ]]; then
+    pass "mkinitcpio rebuild prefers the Limine-aware command"
+else
+    fail "expected limine-mkinitcpio"
+    cat "${work}/mkinitcpio-calls" >&2
+fi
+
+rm "${work}/bin/limine-mkinitcpio"
+: >"${work}/mkinitcpio-calls"
+PATH="${work}/bin" rebuild_mkinitcpio
+if [[ "$(cat "${work}/mkinitcpio-calls")" == "mkinitcpio -P" ]]; then
+    pass "mkinitcpio rebuild falls back to all presets"
+else
+    fail "expected mkinitcpio -P"
+    cat "${work}/mkinitcpio-calls" >&2
+fi
+
 # expect_merge <name> <style> <connector> <input> <expected>
 expect_merge() {
     local name="$1" style="$2" connector="$3" input="$4" expected="$5"

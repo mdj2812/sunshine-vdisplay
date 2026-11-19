@@ -50,6 +50,12 @@ jobs:
         run: |
           python3 scripts/create-vdisplay-edid.py /tmp/virtual-display.bin
           test "$(wc -c < /tmp/virtual-display.bin)" -eq 256
+          python3 scripts/create-vdisplay-edid.py \
+            --primary 3200x2136@60 \
+            --extra 2560x1440@120,2560x1440@60 \
+            /tmp/virtual-display-3200.bin
+          test "$(wc -c < /tmp/virtual-display-3200.bin)" -eq 256
+          python3 tests/edid-modes-test.py
 
   cmdline:
     name: Bootloader cmdline merge
@@ -58,7 +64,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run command line tests
-        run: bash tests/cmdline-merge-test.sh
+        run: |
+          bash tests/cmdline-merge-test.sh
+          bash tests/connector-detection-test.sh
 
   helpers:
     name: Display helpers
@@ -75,7 +83,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        desktop: [kde, gnome]
+        desktop: [kde, gnome, umbriel]
     steps:
       - uses: actions/checkout@v4
 

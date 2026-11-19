@@ -47,6 +47,7 @@ verify_install_artifacts() {
     test -f "${HOME}/bin/vdisplay-on.sh"
     test -f "${HOME}/bin/backends/kde.sh"
     test -f "${HOME}/bin/backends/gnome.sh"
+    test -f "${HOME}/bin/backends/umbriel.sh"
     test -f "${HOME}/.config/sunshine/sunshine.conf"
 
     case "$backend" in

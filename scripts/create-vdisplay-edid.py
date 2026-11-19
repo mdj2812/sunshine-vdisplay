@@ -237,7 +237,7 @@ def build_base_block(primary, secondary=None, modes=None):
     rl[10] = 0x00
     rl[11:18] = b"\x0A\x20\x20\x20\x20\x20\x20"
     base[90:108] = rl
-    base[108:126] = make_descriptor(0xFC, b"VirtDisplay\n ")
+    base[108:126] = make_descriptor(0xFC, b"eDP-Virtual\n ")
     base[126] = 1
     return bytearray(fix_checksum(base))
 
@@ -282,7 +282,9 @@ def build_edid(primary=DEFAULT_PRIMARY, extras=None):
     extras = DEFAULT_EXTRAS if extras is None else extras
     modes = normalize_mode_list(primary, extras)
     secondary = modes[1] if len(modes) > 1 else None
-    return build_base_block(modes[0], secondary, modes) + build_cta_extension(modes)
+    # The base block holds the first two detailed timings. Adding those same
+    # modes again to the CTA extension wastes two of its four timing slots.
+    return build_base_block(modes[0], secondary, modes) + build_cta_extension(modes[2:])
 
 
 def parse_args(argv):
