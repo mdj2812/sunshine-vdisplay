@@ -4,9 +4,15 @@
 |---------|-----|
 | Sunshine: "Couldn't find monitor" | `output_name` must be a numeric KMS index — check `sunshine.log` |
 | Virtual connector stays disconnected | Verify kernel cmdline includes both `drm.edid_firmware` and `video=:e`; rebuild initramfs |
+| `No presets found in /etc/mkinitcpio.d` | CachyOS/Arch with `limine-mkinitcpio-hook` uses `sudo limine-mkinitcpio`, not `mkinitcpio -P` |
 | `vdisplay-on.sh`: display not found | Script needs a running desktop session — its display variable (`WAYLAND_DISPLAY`, `DISPLAY`) has to point at the session Sunshine is running in — and a supported backend ([DESKTOPS.md](DESKTOPS.md)) |
+| `vdisplay-on.sh`: physical connector is not present | Run `umbriel outputs` and set `PDISPLAY` in `~/bin/vdisplay-common.local.sh` to the physical monitor's current connector |
+| Installer selected the old virtual connector as physical | Re-run with `PDISPLAY=<real-monitor>`, or update `PDISPLAY` in `~/bin/vdisplay-common.local.sh`; current installers exclude the previous virtual EDID connector automatically |
+| Logs stop at `Starting system tray` under Noctalia | Set `system_tray = false` in Sunshine's configuration and restart it — see [Sunshine crashes at startup under Noctalia](#sunshine-crashes-at-startup-under-noctalia) |
+| Sunshine only reports `vdisplay-on.sh exited with code 1` | Read `~/.cache/vdisplay/prep.log` for the exact Umbriel command and stderr |
 | Stream goes black when idle | Disable DPMS / screen blanking (installer does this) |
 | Modes capped at 1080p | EDID missing HDMI VSDB blocks — regenerate with included script |
+| Moonlight uses a different resolution than requested | Check the mode is in `cat /sys/class/drm/card*-${VDISPLAY}/modes` and in `EDID_MODES` under `~/bin/vdisplay-common.local.sh`; the selector falls back when it is absent |
 | Undo cmd doesn't run | Runs when the Moonlight **session ends**, not when the app is minimized |
 | Display stays swapped after a Sunshine crash | Sunshine never runs the prep-cmd undo if it dies — see [Crash recovery](#crash-recovery) |
 | Re-testing the force flag without a reboot | The connector only changes state when the compositor re-enumerates it — see [Runtime force flag](#runtime-force-flag) |
@@ -83,6 +89,20 @@ systemctl --user restart sunshine.service
 ```
 
 Use the unit name that matches your install: `sunshine.service` (distro package) or `app-dev.lizardbyte.app.Sunshine.service` (Flatpak). This covers Sunshine stopping, not the machine going down — if the outputs are still swapped after a reboot, run `~/bin/vdisplay-off.sh`.
+
+## Sunshine crashes at startup under Noctalia
+
+Some Sunshine builds abort shortly after logging `Starting system tray` when Noctalia owns the desktop shell. The coredump shows an uncaught C++ exception in Sunshine's Qt/D-Bus path; KMS capture and display switching do not run far enough to be the cause.
+
+Disable the optional Sunshine tray while the integration issue is fixed:
+
+```ini
+system_tray = false
+```
+
+Put that in `~/.config/sunshine/sunshine.conf` or use the equivalent option in Sunshine's web UI, then restart its user service. The web UI remains available at `https://localhost:47990`.
+
+Setting `system_tray = false` was verified to make Sunshine skip its Qt tray event loop instead of entering the failing path. If Sunshine still crashes, the problem is outside the tray path and the coredump plus `sunshine.log` should be investigated separately.
 
 ## Limitations
 

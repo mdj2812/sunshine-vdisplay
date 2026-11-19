@@ -54,17 +54,27 @@ _local_overrides="${HOME}/bin/vdisplay-common.local.sh"
 
 # ---- backend selection ----------------------------------------------------
 
-# Which desktop are we on? XDG_CURRENT_DESKTOP decides when it is set; when it
-# is not (ssh, console), fall back to whichever tool is installed.
+# Which desktop are we on? XDG_CURRENT_DESKTOP decides when it is set. Sunshine
+# may launch prep commands without that variable, so identify the running
+# compositor before falling back to whichever tools happen to be installed.
 de_desktop() {
     case "${XDG_CURRENT_DESKTOP:-}" in
         *KDE*) echo kde ;;
         *GNOME*) echo gnome ;;
+        *umbriel* | *Umbriel*) echo umbriel ;;
         *)
-            if command -v kscreen-doctor >/dev/null 2>&1; then
+            if command -v pgrep >/dev/null 2>&1 && pgrep -x kwin_wayland >/dev/null 2>&1; then
+                echo kde
+            elif command -v pgrep >/dev/null 2>&1 && pgrep -x gnome-shell >/dev/null 2>&1; then
+                echo gnome
+            elif command -v pgrep >/dev/null 2>&1 && pgrep -x umbriel >/dev/null 2>&1; then
+                echo umbriel
+            elif command -v kscreen-doctor >/dev/null 2>&1; then
                 echo kde
             elif command -v gdctl >/dev/null 2>&1; then
                 echo gnome
+            elif command -v umbriel >/dev/null 2>&1; then
+                echo umbriel
             else
                 echo unknown
             fi
@@ -108,6 +118,55 @@ connector_status() {
 connector_present() {
     local connector="${1:-$VDISPLAY}"
     [[ "$(connector_status "$connector" 2>/dev/null || true)" == "connected" ]]
+}
+
+connector_has_virtual_edid() {
+    local connector="$1"
+    local cmdline_file="${VDISPLAY_CMDLINE_FILE:-/proc/cmdline}"
+    local cmdline
+
+    [[ -f "$cmdline_file" ]] || return 1
+    IFS= read -r cmdline <"$cmdline_file" || true
+
+    [[ "$cmdline" == *"drm.edid_firmware=${connector}:"*"virtual-display.bin"* ]] \
+        || [[ "$cmdline" == *"video=${connector}:e"* ]]
+}
+
+# Recover from a stale local override after the physical monitor moves to a
+# different connector. Refuse to guess when more than one physical output is
+# connected.
+resolve_physical_connector() {
+    local path connector status
+    local -a candidates=()
+
+    connector_present "$PDISPLAY" && return 0
+
+    for path in "${VDISPLAY_SYSFS}"/card*-*/status; do
+        [[ -f "$path" ]] || continue
+        status="$(cat "$path")"
+        [[ "$status" == "connected" ]] || continue
+
+        connector="$(basename "$(dirname "$path")")"
+        connector="${connector#card*-}"
+        [[ "$connector" == "$VDISPLAY" ]] && continue
+        connector_has_virtual_edid "$connector" && continue
+        candidates+=("$connector")
+    done
+
+    if [[ "${#candidates[@]}" -eq 1 ]]; then
+        echo "warning: physical display $PDISPLAY is absent; using ${candidates[0]}." >&2
+        PDISPLAY="${candidates[0]}"
+        return 0
+    fi
+
+    echo "Physical display $PDISPLAY is absent and the physical connector is ambiguous." >&2
+    if [[ "${#candidates[@]}" -eq 0 ]]; then
+        echo "No connected non-virtual output was found." >&2
+    else
+        echo "Connected candidates: ${candidates[*]}" >&2
+    fi
+    echo "Set PDISPLAY in ${HOME}/bin/vdisplay-common.local.sh." >&2
+    return 1
 }
 
 # Pick the EDID mode closest to what the client asked for. The mode list comes
@@ -173,7 +232,7 @@ pick_stream_resolution() {
 
 de_require_tools() {
     if ! load_backend; then
-        echo "No display backend for this desktop: this system has neither a KDE Plasma nor a GNOME session." >&2
+        echo "No display backend for this desktop: expected KDE Plasma, GNOME, or Umbriel." >&2
         echo "Other desktops need their own backend — see docs/DESKTOPS.md." >&2
         return 1
     fi

@@ -7,7 +7,7 @@
 # monitor back before switching away from the virtual one.
 #
 # Usage:
-#   ./tests/desktop-backends-test.sh [kde|gnome]
+#   ./tests/desktop-backends-test.sh [kde|gnome|umbriel]
 
 set -euo pipefail
 
@@ -29,6 +29,8 @@ mkdir -p "$HOME" "$STATE_DIR" "${work}/bin" \
     "${work}/drm/card1-${VDISPLAY}" "${work}/drm/card1-${PDISPLAY}"
 echo connected >"${work}/drm/card1-${VDISPLAY}/status"
 echo connected >"${work}/drm/card1-${PDISPLAY}/status"
+echo "${RES%@*}" >"${work}/drm/card1-${VDISPLAY}/modes"
+echo "${PDISPLAY_RES%@*}" >"${work}/drm/card1-${PDISPLAY}/modes"
 export PATH="${work}/bin:${PATH}"
 
 calls="${work}/calls"
@@ -64,11 +66,69 @@ fi
 exit 0
 EOF
 
+cat >"${work}/bin/umbriel" <<EOF
+#!/usr/bin/env bash
+printf 'umbriel %s\n' "\$*" >>"${calls}"
+state="${work}/umbriel-state"
+case "\${1:-}" in
+    outputs)
+        printf 'HDMI-A-1\\n'
+        printf 'DP-3\\n'
+        ;;
+    config)
+        key="\${3:-}"
+        value="\${4:-}"
+        connector="\${key#output.}"
+        connector="\${connector%.enabled}"
+        case "\${2:-}" in
+            get)
+                cat "\${state}/\${connector}" 2>/dev/null || printf 'true\\n'
+                ;;
+            set)
+                case "\$key" in
+                    *.mode | *.hdr)
+                        if [[ ! "\$value" =~ ^\\".*\\"$ ]]; then
+                            printf 'expected one TOML value, got: %s\\n' "\$value" >&2
+                            exit 1
+                        fi
+                        ;;
+                    *.position)
+                        if [[ ! "\$value" =~ ^\\[[0-9-]+,[[:space:]]*[0-9-]+\\]$ ]]; then
+                            printf 'expected one TOML value, got: %s\\n' "\$value" >&2
+                            exit 1
+                        fi
+                        ;;
+                    *.scale)
+                        if [[ ! "\$value" =~ ^[0-9.]+$ ]]; then
+                            printf 'expected one TOML value, got: %s\\n' "\$value" >&2
+                            exit 1
+                        fi
+                        ;;
+                esac
+                ;;
+        esac
+        ;;
+    msg)
+        case "\${2:-}" in
+            output-enable) printf 'true\\n' >"\${state}/\${3}" ;;
+            output-disable) printf 'false\\n' >"\${state}/\${3}" ;;
+        esac
+        ;;
+esac
+exit 0
+EOF
+
+cat >"${work}/bin/pgrep" <<'EOF'
+#!/usr/bin/env bash
+[[ "${1:-}" == "-x" && "${2:-}" == "umbriel" ]]
+EOF
+
 # KDE night colour plumbing, called by the swap scripts.
 for tool in qdbus kwriteconfig6 kreadconfig6; do
     printf '#!/usr/bin/env bash\nexit 0\n' >"${work}/bin/${tool}"
 done
 chmod +x "${work}/bin/"*
+mkdir -p "${work}/umbriel-state"
 
 failures=0
 fail() {
@@ -76,6 +136,19 @@ fail() {
     failures=$((failures + 1))
 }
 pass() { printf 'ok: %s\n' "$*"; }
+
+selected="$(
+    env HOME="$HOME" STATE_DIR="$STATE_DIR" VDISPLAY_SYSFS="$VDISPLAY_SYSFS" \
+        EDID_MODES="3200x2136@60,2560x1440@120" \
+        SUNSHINE_CLIENT_WIDTH=3200 SUNSHINE_CLIENT_HEIGHT=2136 SUNSHINE_CLIENT_FPS=60 \
+        /usr/bin/bash -c \
+        "source '${repo_root}/scripts/vdisplay-common.sh'; pick_stream_resolution"
+)"
+if [[ "$selected" == "3200x2136@60" ]]; then
+    pass "selects the exact custom client resolution"
+else
+    fail "expected 3200x2136@60, got '${selected}'"
+fi
 
 expect_call() {
     local name="$1" pattern="$2"
@@ -144,6 +217,71 @@ if [[ -z "$only_desktop" || "$only_desktop" == "gnome" ]]; then
     : >"$calls"
     run_scripts gnome-hdr ubuntu:GNOME env VDISPLAY_HDR=1 || true
     expect_call "gnome: requests the HDR colour mode" "--color-mode bt2100"
+fi
+
+if [[ -z "$only_desktop" || "$only_desktop" == "umbriel" ]]; then
+    : >"$calls"
+    printf 'false\n' >"${work}/umbriel-state/${VDISPLAY}"
+    printf 'true\n' >"${work}/umbriel-state/${PDISPLAY}"
+    run_scripts umbriel umbriel || true
+
+    expect_call "umbriel: sets the virtual mode" \
+        "umbriel config set output.${VDISPLAY}.mode \"${RES}\""
+    expect_call "umbriel: places the virtual output" \
+        "umbriel config set output.${VDISPLAY}.position [0, 0]"
+    expect_call "umbriel: sets the virtual scale" \
+        "umbriel config set output.${VDISPLAY}.scale 1.5"
+    expect_call "umbriel: enables the virtual output" \
+        "umbriel msg output-enable ${VDISPLAY}"
+    expect_call "umbriel: removes the physical output" \
+        "umbriel msg output-disable ${PDISPLAY}"
+    expect_call "umbriel: restores the physical output" \
+        "umbriel msg output-enable ${PDISPLAY}"
+    expect_no_call "umbriel: preserves the physical output config" \
+        "umbriel config set output.${PDISPLAY}."
+    expect_call "umbriel: removes the virtual output" \
+        "umbriel msg output-disable ${VDISPLAY}"
+    expect_no_call "umbriel: leaves kscreen-doctor alone" "kscreen-doctor"
+    expect_no_call "umbriel: leaves gdctl alone" "gdctl"
+    if grep -qF 'ok: umbriel config set output.HDMI-A-1.mode' \
+        "${STATE_DIR}/prep.log"; then
+        pass "umbriel: records successful commands for diagnostics"
+    else
+        fail "umbriel: command diagnostics were not written"
+        cat "${STATE_DIR}/prep.log" >&2 2>/dev/null || true
+    fi
+
+    : >"$calls"
+    printf 'false\n' >"${work}/umbriel-state/${VDISPLAY}"
+    printf 'true\n' >"${work}/umbriel-state/${PDISPLAY}"
+    run_scripts umbriel-hdr umbriel env VDISPLAY_HDR=1 || true
+    expect_call "umbriel: enables HDR while streaming" \
+        "umbriel config set output.${VDISPLAY}.hdr \"on\""
+    expect_call "umbriel: turns HDR off on restore" \
+        "umbriel config set output.${VDISPLAY}.hdr \"off\""
+
+    : >"$calls"
+    printf 'true\n' >"${work}/umbriel-state/${VDISPLAY}"
+    printf 'true\n' >"${work}/umbriel-state/${PDISPLAY}"
+    if env XDG_CURRENT_DESKTOP=umbriel "${repo_root}/scripts/vdisplay-on.sh" \
+        >"${work}/umbriel-already-enabled.log" 2>&1; then
+        pass "umbriel: enables an already-enabled virtual output"
+    else
+        fail "umbriel: failed with an already-enabled virtual output"
+        cat "${work}/umbriel-already-enabled.log" >&2
+    fi
+    expect_call "umbriel: sends output-enable even when config state is stale" \
+        "umbriel msg output-enable ${VDISPLAY}"
+
+    detected="$(
+        env PATH="${work}/bin:${PATH}" XDG_CURRENT_DESKTOP= /usr/bin/bash -c \
+            "source '${repo_root}/scripts/vdisplay-common.sh'; de_desktop"
+    )"
+    if [[ "$detected" == "umbriel" ]]; then
+        pass "umbriel: detects the compositor when XDG_CURRENT_DESKTOP is missing"
+    else
+        fail "umbriel: expected process detection, got '${detected}'"
+    fi
 fi
 
 # With no known desktop and no compositor tool, the scripts must say what is

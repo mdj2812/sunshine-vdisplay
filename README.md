@@ -1,17 +1,17 @@
 # sunshine-vdisplay
 
-Virtual display setup for **Sunshine/Moonlight** streaming on **Linux**, **NVIDIA**, and **KDE Plasma Wayland**.
+Virtual display setup for **Sunshine/Moonlight** streaming on **Linux** and **NVIDIA**, with display-switching backends for **KDE Plasma Wayland**, **GNOME**, and **Umbriel**.
 
 Force-enable a spare GPU output with a custom EDID — no dummy plug required. Includes automatic display switching when a Moonlight session starts and ends.
 
-**Tested on:** CachyOS · RTX 2070 SUPER · Limine · Sunshine 2026.x · KDE Plasma 6
+**Validated on:** CachyOS · RTX 2070 SUPER · Limine · Sunshine 2026.x · KDE Plasma 6. The Umbriel 0.1 + Noctalia 5.5 display controls are implementation-tested; a full Moonlight run still needs the [Noctalia tray workaround](docs/TROUBLESHOOTING.md#sunshine-crashes-at-startup-under-noctalia).
 
 ## Features
 
 - Custom EDID with HDMI 2.1 VSDB blocks (2560×1440@120, 4K, and more)
 - One-line installer for Arch/CachyOS (Limine, GRUB, or systemd-boot)
 - Automatic virtual/physical display swap via Sunshine `global_prep_cmd`
-- Brightness tuning for virtual outputs (scale, brightness, dimming, Night Color)
+- KDE brightness tuning and Umbriel runtime mode/scale/HDR controls
 - Client-adaptive resolution via `SUNSHINE_CLIENT_*` env vars
 
 ## Requirements
@@ -19,7 +19,7 @@ Force-enable a spare GPU output with a custom EDID — no dummy plug required. I
 | Component | Notes |
 |-----------|-------|
 | GPU | NVIDIA with proprietary driver |
-| Desktop | KDE Plasma (Wayland tested) or GNOME (unverified) — see [DESKTOPS.md](docs/DESKTOPS.md) |
+| Desktop | KDE Plasma (Wayland tested), GNOME, or Umbriel — see [DESKTOPS.md](docs/DESKTOPS.md) |
 | Streaming | [Sunshine](https://app.lizardbyte.dev/) with KMS capture |
 | Bootloader | Limine, GRUB, or systemd-boot |
 | Spare connector | Unused HDMI or DisplayPort (nothing plugged in) |
@@ -51,7 +51,7 @@ See [docs/INSTALL.md](docs/INSTALL.md) for connector overrides, environment vari
 ```
 Boot
   └─ kernel loads custom EDID on spare connector (e.g. HDMI-A-1)
-       └─ KDE sees a second monitor
+       └─ compositor sees a second monitor
 
 Moonlight session start
   └─ Sunshine global_prep_cmd → vdisplay-on.sh
@@ -94,7 +94,7 @@ Sunshine captures the virtual output via **KMS** (`capture = kms`, `encoder = nv
 | `scripts/vdisplay-on.sh` | Enable virtual, disable physical |
 | `scripts/vdisplay-off.sh` | Restore physical, disable virtual |
 | `scripts/vdisplay-common.sh` | Shared helpers and desktop backend dispatch |
-| `scripts/backends/` | Per-desktop switching backends (`kde.sh`, `gnome.sh`) |
+| `scripts/backends/` | Per-desktop switching backends (`kde.sh`, `gnome.sh`, `umbriel.sh`) |
 | `config/sunshine.conf` | Sunshine config template (`__HOME__` placeholders) |
 | `system/mkinitcpio.files.snippet` | Initramfs EDID reference |
 | `system/limine.cmdline.snippet` | Kernel param reference |

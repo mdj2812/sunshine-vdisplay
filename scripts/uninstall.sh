@@ -232,6 +232,17 @@ remove_initramfs_tools() {
     fi
 }
 
+rebuild_mkinitcpio() {
+    if command -v limine-mkinitcpio >/dev/null 2>&1; then
+        log "Rebuilding initramfs and Limine entries with limine-mkinitcpio"
+        as_root limine-mkinitcpio
+        return
+    fi
+
+    log "Rebuilding initramfs with mkinitcpio"
+    as_root mkinitcpio -P
+}
+
 rebuild_initramfs() {
     local backend
     backend="$(detect_initramfs_backend)"
@@ -240,10 +251,9 @@ rebuild_initramfs() {
         mkinitcpio)
             remove_mkinitcpio || warn "mkinitcpio.conf not found"
             if [[ "${SKIP_INITRAMFS_REBUILD:-0}" == "1" ]]; then
-                warn "SKIP_INITRAMFS_REBUILD=1 — skipped mkinitcpio -P"
+                warn "SKIP_INITRAMFS_REBUILD=1 — skipped initramfs rebuild"
             else
-                log "Rebuilding initramfs with mkinitcpio"
-                as_root mkinitcpio -P
+                rebuild_mkinitcpio
             fi
             ;;
         dracut)
