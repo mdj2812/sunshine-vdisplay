@@ -50,7 +50,7 @@ Umbriel reports `XDG_CURRENT_DESKTOP=umbriel`. The backend uses:
 
 Umbriel parses the value passed to `config set` as TOML, so string values such as `mode` and `hdr` are sent quoted. `backend_has_output` reads connector presence from `/sys/class/drm` because an output removed with `output-disable` is still a valid connector and can be enabled again. The backend sets `output.<connector>.enabled` before calling `output-enable`/`output-disable`, so a persisted disabled state does not block the stream-start transition.
 
-When restoring the physical monitor, the backend only sends `output-enable`. Umbriel then reapplies that connector's mode, position, and fractional scale from the user's configuration instead of replacing them with the repository defaults.
+When restoring the physical monitor, the backend sets its persisted `enabled` flag to `true` before sending `output-enable`. This prevents a stale disabled override from turning the output back off during Umbriel's next config reload. Umbriel then reapplies that connector's mode, position, and fractional scale from the user's configuration instead of replacing them with the repository defaults.
 
 The display backend does not depend on Noctalia. Noctalia provides the shell, bar, notifications, and night-light schedule. The backend deliberately leaves Noctalia's night-light schedule alone instead of changing desktop state that is outside the compositor.
 

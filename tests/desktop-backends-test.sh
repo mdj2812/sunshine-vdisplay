@@ -237,6 +237,8 @@ if [[ -z "$only_desktop" || "$only_desktop" == "umbriel" ]]; then
         "umbriel msg output-enable ${VDISPLAY}"
     expect_call "umbriel: removes the physical output" \
         "umbriel msg output-disable ${PDISPLAY}"
+    expect_call "umbriel: marks the physical output enabled on restore" \
+        "umbriel config set output.${PDISPLAY}.enabled true"
     expect_call "umbriel: restores the physical output" \
         "umbriel msg output-enable ${PDISPLAY}"
     expect_no_call "umbriel: preserves the physical output mode" \
