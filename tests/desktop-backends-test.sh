@@ -231,16 +231,24 @@ if [[ -z "$only_desktop" || "$only_desktop" == "umbriel" ]]; then
         "umbriel config set output.${VDISPLAY}.position [0, 0]"
     expect_call "umbriel: sets the virtual scale" \
         "umbriel config set output.${VDISPLAY}.scale 1.5"
+    expect_call "umbriel: marks the virtual output enabled" \
+        "umbriel config set output.${VDISPLAY}.enabled true"
     expect_call "umbriel: enables the virtual output" \
         "umbriel msg output-enable ${VDISPLAY}"
     expect_call "umbriel: removes the physical output" \
         "umbriel msg output-disable ${PDISPLAY}"
     expect_call "umbriel: restores the physical output" \
         "umbriel msg output-enable ${PDISPLAY}"
-    expect_no_call "umbriel: preserves the physical output config" \
-        "umbriel config set output.${PDISPLAY}."
+    expect_no_call "umbriel: preserves the physical output mode" \
+        "umbriel config set output.${PDISPLAY}.mode"
+    expect_no_call "umbriel: preserves the physical output position" \
+        "umbriel config set output.${PDISPLAY}.position"
+    expect_no_call "umbriel: preserves the physical output scale" \
+        "umbriel config set output.${PDISPLAY}.scale"
     expect_call "umbriel: removes the virtual output" \
         "umbriel msg output-disable ${VDISPLAY}"
+    expect_call "umbriel: marks the virtual output disabled" \
+        "umbriel config set output.${VDISPLAY}.enabled false"
     expect_no_call "umbriel: leaves kscreen-doctor alone" "kscreen-doctor"
     expect_no_call "umbriel: leaves gdctl alone" "gdctl"
     if grep -qF 'ok: umbriel config set output.HDMI-A-1.mode' \
