@@ -72,6 +72,7 @@ umbriel_enable_output() {
     umbriel_set_output_string_option "$connector" mode "$res"
     umbriel_set_output_option "$connector" position "[${x}, ${y}]"
     umbriel_set_output_option "$connector" scale "$scale"
+    umbriel_set_output_option "$connector" enabled true
     umbriel_command msg output-enable "$connector"
     echo "Enabled $connector at ${res} (${x},${y}, scale=${scale})"
 }
@@ -79,8 +80,8 @@ umbriel_enable_output() {
 umbriel_disable_output() {
     local connector="$1"
 
-    # The configured `enabled` value does not track live changes made by
-    # `msg output-enable`, so always send the compositor action.
+    # Persist the disabled state as well as changing the live output set.
+    umbriel_set_output_option "$connector" enabled false
     umbriel_command msg output-disable "$connector"
     echo "Disabled $connector"
 }
@@ -126,7 +127,10 @@ backend_switch_to_physical() {
 
     # Let Umbriel reapply its own mode, position, and scale for this connector.
     # Replacing them with the repository defaults would lose machine-specific
-    # desktop.toml settings, such as a fractional scale.
+    # desktop.toml settings, such as a fractional scale. Clear a persisted
+    # disabled state first so a subsequent config reload cannot turn the
+    # physical output back off after it has been enabled live.
+    umbriel_set_output_option "$PDISPLAY" enabled true
     umbriel_command msg output-enable "$PDISPLAY"
     echo "Enabled $PDISPLAY with its Umbriel output configuration"
 
